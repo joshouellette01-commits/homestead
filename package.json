@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit",
-    "build": "tsc --noEmit && vite build",
+    "validate": "tsx scripts/validate-layout.ts",
+    "sim": "tsx scripts/simulate.ts",
+    "build": "npm run validate && tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "icons": "tsx scripts/make-icons.ts"
