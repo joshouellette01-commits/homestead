@@ -9,9 +9,11 @@ function layout(over: Partial<Layout> = {}): Layout {
     playerRadius: 0.4,
     minPadSpacing: 3,
     minUpgradePlotToInputPadSpacing: 3,
+    maxWalkDistance: 32,
     pads: [],
     piles: [],
     solids: [],
+    walks: [],
     ...over,
   };
 }
@@ -69,6 +71,21 @@ describe('validateLayout', () => {
       }),
     );
     expect(errors).toEqual([expect.stringMatching(/pad sell lies on the path from pile wheat to mill-in/)]);
+  });
+
+  it('rule 5: flags a node too far to walk from its machine', () => {
+    const errors = validateLayout(
+      layout({ walks: [{ from: { id: 'tree', x: 0, z: 0 }, to: { id: 'saw-in', x: 40, z: 0 } }] }),
+    );
+    expect(errors).toEqual([expect.stringMatching(/tree is 40\.00 from saw-in/)]);
+  });
+
+  it('checks a built machine: its building blocks pads too close to it', () => {
+    const c = parseContent(raw);
+    const plot = c.zones[0]!.plots.find((p) => p.kind === 'building')!;
+    if (plot.kind !== 'building') throw new Error('expected a building plot');
+    plot.site.inputPad = { x: plot.site.x + 0.5, z: plot.site.z };
+    expect(validateLayout(layoutFromContent(c))).toContainEqual(expect.stringMatching(/pad yard-sawmill-input cannot be stood on/));
   });
 
   it('rule 4: allows a pad beside the path', () => {

@@ -1,6 +1,6 @@
-// The layout validator: DESIGN.md's four pad rules, checked against
-// content.json at build time. Works on an abstract layout so the rules can be
-// tested before machines, piles and plots exist in content.
+// The layout validator: DESIGN.md's four pad rules plus its walking-distance
+// rule, checked against content.json at build time. Works on an abstract
+// layout so each rule can be tested on its own.
 import type { Content } from './schema';
 
 export type LayoutPadKind = 'sell' | 'input' | 'output' | 'trough' | 'plot' | 'upgradePlot' | 'lever';
@@ -28,14 +28,23 @@ export interface LayoutSolid {
   r: number;
 }
 
+/** Two places DESIGN.md says must be within maxWalkDistance of each other. */
+export interface LayoutWalk {
+  from: { id: string; x: number; z: number };
+  to: { id: string; x: number; z: number };
+}
+
 export interface Layout {
   padRadius: number;
   playerRadius: number;
   minPadSpacing: number;
   minUpgradePlotToInputPadSpacing: number;
+  /** Starting walk speed times maxWalkSeconds. */
+  maxWalkDistance: number;
   pads: LayoutPad[];
   piles: LayoutPile[];
   solids: LayoutSolid[];
+  walks: LayoutWalk[];
 }
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number => Math.hypot(a.x - b.x, a.z - b.z);
@@ -102,12 +111,23 @@ export function validateLayout(l: Layout): string[] {
     }
   }
 
+  // Rule 5: every node within maxWalkSeconds of its machine, and every machine
+  // within maxWalkSeconds of its zone's sell pad (straight line, at starting speed).
+  for (const w of l.walks) {
+    const d = dist(w.from, w.to);
+    if (d > l.maxWalkDistance) {
+      errors.push(`${w.from.id} is ${f(d)} from ${w.to.id}, more than the ${f(l.maxWalkDistance)} walkable in maxWalkSeconds`);
+    }
+  }
+
   return errors;
 }
 
 export function layoutFromContent(c: Content): Layout {
   const pads: LayoutPad[] = [];
   const solids: LayoutSolid[] = [];
+  const piles: LayoutPile[] = [];
+  const walks: LayoutWalk[] = [];
   for (const zone of c.zones) {
     for (const p of zone.pads) pads.push({ id: p.id, kind: p.kind, x: p.x, z: p.z });
     for (const p of zone.props) solids.push({ id: p.id, x: p.x, z: p.z, r: p.radius });
@@ -115,14 +135,37 @@ export function layoutFromContent(c: Content): Layout {
       const type = c.nodeTypes[n.type];
       if (type) solids.push({ id: n.id, x: n.x, z: n.z, r: type.radius });
     }
+    const sellPads = zone.pads.filter((p) => p.kind === 'sell');
+    for (const plot of zone.plots) {
+      if (plot.kind === 'character') {
+        pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z });
+        continue;
+      }
+      // Checked as if built: the plot pad becomes the speed plot, beside the
+      // building and its pads. Before building, only the plot pad exists, so
+      // a layout that passes built also passes unbuilt.
+      const machine = c.machines[plot.machine];
+      const { site } = plot;
+      const input = { id: `${plot.id}-input`, kind: 'input' as const, ...site.inputPad };
+      const output = { id: `${plot.id}-output`, kind: 'output' as const, ...site.outputPad };
+      pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z }, input, output);
+      if (machine) solids.push({ id: plot.id, x: site.x, z: site.z, r: machine.radius });
+      piles.push({ id: `${plot.id}-output-pile`, ...site.outputPile, feeds: [output.id] });
+      for (const n of zone.nodes) {
+        if (machine && c.nodeTypes[n.type]?.item === machine.input) walks.push({ from: n, to: input });
+      }
+      for (const sell of sellPads) walks.push({ from: output, to: sell });
+    }
   }
   return {
     padRadius: c.interaction.padRadius,
     playerRadius: c.player.radius,
     minPadSpacing: c.interaction.minPadSpacing,
     minUpgradePlotToInputPadSpacing: c.interaction.minUpgradePlotToInputPadSpacing,
+    maxWalkDistance: (c.characterTracks.walkSpeed.values[0] ?? 0) * c.interaction.maxWalkSeconds,
     pads,
-    piles: [],
+    piles,
     solids,
+    walks,
   };
 }

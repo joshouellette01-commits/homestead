@@ -1,4 +1,4 @@
-// Checks content.json against DESIGN.md's pad rules. Runs before every build.
+// Checks content.json against DESIGN.md's pad and walking-distance rules. Runs before every build.
 import { readFileSync } from 'node:fs';
 import { layoutFromContent, validateLayout } from '../src/content/layout';
 import { parseContent } from '../src/content/load';
@@ -11,4 +11,4 @@ if (errors.length > 0) {
   for (const e of errors) console.error(`  - ${e}`);
   process.exit(1);
 }
-console.log('Layout validator: content.json passes all pad rules');
+console.log('Layout validator: content.json passes all layout rules');
