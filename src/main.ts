@@ -58,6 +58,13 @@ function start(state: SimState): void {
   // Shadows drop for good if the first seconds of play run slow.
   const probe = { frames: 0, seconds: 0, done: false };
 
+  let debugFrame: ((dt: number) => void) | null = null;
+  if (new URLSearchParams(location.search).has('debug')) {
+    void import('./debug/overlay').then((m) => {
+      debugFrame = m.createDebugOverlay(root, content, world);
+    });
+  }
+
   const capWorld = new Vector3();
   let accumulator = 0;
   let sinceSave = 0;
@@ -97,6 +104,7 @@ function start(state: SimState): void {
 
     world.update(state, frame, paused ? 0 : dt);
     world.render();
+    debugFrame?.(dt);
 
     const full = state.player.stack.length >= content.player.capacity;
     let cap: { x: number; y: number } | null = null;
