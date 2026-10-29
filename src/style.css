@@ -4,7 +4,8 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #a8c8e0;
+  /* Matches the lit snow, so any strip the canvas misses doesn't show. */
+  background: #d6dfe3;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -13,8 +14,8 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  /* Full screen height, including the home-indicator strip: in the installed
-     iOS app, 100% and inset: 0 stop short of it and leave a band. */
+  /* src/viewport.ts overrides this with the real screen height in the
+     installed iOS app, where these units come up short. */
   height: 100vh;
   height: 100lvh;
   touch-action: none;

@@ -3,6 +3,7 @@
 // values to paste back into content.json. Never shown in normal play.
 import type { Content } from '../content';
 import type { World } from '../render/scene';
+import { viewportReport } from '../viewport';
 
 interface Slider {
   label: string;
@@ -57,6 +58,7 @@ const CSS = `
 .dbg { position: absolute; left: calc(env(safe-area-inset-left) + 8px); bottom: calc(env(safe-area-inset-bottom) + 8px);
   z-index: 1001; font: 12px/1.3 ui-monospace, Menlo, monospace; color: #fff; }
 .dbg-stats { background: rgba(0,0,0,.6); padding: 4px 8px; border-radius: 6px; display: inline-block; }
+.dbg-viewport { background: rgba(0,0,0,.6); padding: 2px 8px; border-radius: 6px; display: inline-block; margin-bottom: 4px; font-size: 11px; }
 .dbg button { font: inherit; margin-left: 6px; padding: 4px 8px; border-radius: 6px; border: none; background: #f2c14e; color: #222; }
 .dbg-panel { margin-top: 6px; background: rgba(0,0,0,.75); padding: 8px; border-radius: 8px; width: min(320px, calc(100vw - 32px));
   max-height: 55vh; overflow-y: auto; touch-action: pan-y; }
@@ -73,6 +75,10 @@ export function createDebugOverlay(root: HTMLElement, content: Content, world: W
   const box = document.createElement('div');
   box.className = 'dbg';
   root.appendChild(box);
+
+  const viewport = document.createElement('div');
+  viewport.className = 'dbg-viewport';
+  box.appendChild(viewport);
 
   const statsRow = document.createElement('div');
   const stats = document.createElement('span');
@@ -148,6 +154,7 @@ export function createDebugOverlay(root: HTMLElement, content: Content, world: W
     if (elapsed >= 0.5) {
       const info = world.renderer.info.render;
       stats.textContent = `${Math.round(frames / elapsed)} fps · ${info.calls} draws · ${Math.round(info.triangles / 1000)}k tris`;
+      viewport.textContent = viewportReport();
       frames = 0;
       elapsed = 0;
     }

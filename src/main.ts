@@ -8,6 +8,7 @@ import { createState, type SimState } from './sim/state';
 import { SIM_DT, settle, tick } from './sim/tick';
 import { registerUpdates } from './pwa';
 import { Hud, showDialog } from './ui/hud';
+import { fitViewport } from './viewport';
 
 const AUTOSAVE_SECONDS = 10;
 
@@ -15,6 +16,7 @@ const app = document.getElementById('app');
 if (!app) throw new Error('#app missing from index.html');
 const root: HTMLElement = app;
 
+fitViewport();
 const storage = getStorage();
 
 // Set once the game is running; until then (e.g. behind the corrupt-save
