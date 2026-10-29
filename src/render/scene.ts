@@ -13,9 +13,11 @@ import type { Content } from '../content';
 import { playerStats } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import type { SimEvent } from '../sim/tick';
+import { BuildingsView } from './buildings';
 import { IsoCamera } from './camera';
 import { COLORS, LIGHTING, RENDER } from './config';
 import { FarmerView } from './farmer';
+import { PlotsView } from './plots';
 import { PropsView } from './props';
 import { TreesView } from './trees';
 
@@ -34,6 +36,8 @@ export class World {
   private readonly sun: DirectionalLight;
   private readonly trees: TreesView;
   private readonly props: PropsView;
+  private readonly plots: PlotsView;
+  private readonly buildings: BuildingsView;
   private shadows = true;
   /** Set when shadows were switched by hand, so the startup probe leaves them alone. */
   shadowsOverridden = false;
@@ -70,6 +74,12 @@ export class World {
 
     this.trees = new TreesView(this.scene, state.nodes, content);
     this.props = new PropsView(this.scene, content);
+    this.buildings = new BuildingsView(this.scene, content, state);
+    // Plot prices float over the world, under the HUD.
+    const labels = document.createElement('div');
+    labels.className = 'world-labels';
+    container.appendChild(labels);
+    this.plots = new PlotsView(this.scene, labels, content);
     this.farmer = new FarmerView(this.scene, content);
 
     this.iso.snapTo(state.player.x, state.player.z);
@@ -127,6 +137,7 @@ export class World {
     );
     this.trees.update(state.nodes, dt);
     this.props.update(p.x, p.z, !moving);
+    this.buildings.update(state, x, z, this.iso.yawRad, dt);
 
     this.iso.follow(x, z, dt);
     const t = this.iso.target;
@@ -134,7 +145,9 @@ export class World {
     this.sun.target.position.copy(t);
   }
 
-  render(): void {
+  render(state: SimState): void {
     this.renderer.render(this.scene, this.iso.camera);
+    // After the render, so labels use this frame's camera.
+    this.plots.update(state, this.iso.camera);
   }
 }

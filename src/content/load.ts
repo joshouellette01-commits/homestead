@@ -112,6 +112,7 @@ function camera(value: unknown, path: string): CameraContent {
     yawDeg: num(o, 'yawDeg', path),
     viewSize: positive(o, 'viewSize', path),
     followLerpSeconds: num(o, 'followLerpSeconds', path, { min: 0 }),
+    buildingFadeOpacity: num(o, 'buildingFadeOpacity', path, { min: 0 }),
   };
 }
 

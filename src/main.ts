@@ -118,7 +118,7 @@ function start(state: SimState): void {
     }
 
     world.update(state, frame, paused ? 0 : dt);
-    world.render();
+    world.render(state);
     debugFrame?.(dt);
 
     const { capacity } = playerStats(state, content);

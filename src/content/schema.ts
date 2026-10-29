@@ -21,6 +21,8 @@ export interface CameraContent {
   /** World units visible across the shorter side of the screen. */
   viewSize: number;
   followLerpSeconds: number;
+  /** Opacity of a building standing between the camera and the farmer. */
+  buildingFadeOpacity: number;
 }
 
 export interface ControlsContent {

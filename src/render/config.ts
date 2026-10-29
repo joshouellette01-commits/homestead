@@ -35,6 +35,12 @@ export const COLORS = {
   tableTop: 0xb98552,
   pad: 0x5d6d7a,
   padActive: 0xf2c14e,
+  plotDash: 0xffffff,
+  sawmillBase: 0x7a5434,
+  sawmillWall: 0xa8794a,
+  sawmillRoof: 0x8c3b2e,
+  workbenchTop: 0xb98552,
+  workbenchLeg: 0x7a5434,
   farmerShirt: 0x3f6fb5,
   farmerPants: 0x40404a,
   farmerSkin: 0xf0c8a0,
@@ -46,7 +52,34 @@ export const COLORS = {
 /** Stack and world colours per item id. */
 export const ITEM_COLORS: Record<string, number> = {
   log: 0x8b5a2b,
+  plank: 0xe0b878,
 };
+
+/** Dashed plot rings and their labels. */
+export const PLOTS = {
+  dashes: 14,
+  /** Fraction of each dash slot that is drawn. */
+  dashFill: 0.6,
+  fillSegments: 48,
+  /** Height above the ground where the price label floats: over the farmer's head. */
+  labelHeight: 2.3,
+} as const;
+
+/** Primitive building sizes and their build and fade animation. */
+export const BUILDINGS = {
+  sawmill: { width: 2.4, depth: 1.8 },
+  ghostOpacity: 0.3,
+  popSeconds: 0.35,
+  bladeTurnsPerCycle: 2,
+  /** A building fades when the farmer is within this much of it sideways on screen, */
+  fadeMargin: 0.6,
+  /** or up to this far behind it (taller buildings hide more ground). */
+  fadeReach: 2.6,
+  fadeSpeed: 10,
+} as const;
+
+/** One item in a machine's pile. */
+export const PILE = { length: 0.5, height: 0.15, depth: 0.15, perLayer: 3, iconSize: 0.45 } as const;
 
 /** Placeholder farmer proportions until the glTF farmer lands. */
 export const FARMER = {
