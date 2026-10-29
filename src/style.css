@@ -10,7 +10,13 @@ body {
 
 body {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  /* Full screen height, including the home-indicator strip: in the installed
+     iOS app, 100% and inset: 0 stop short of it and leave a band. */
+  height: 100vh;
+  height: 100lvh;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;

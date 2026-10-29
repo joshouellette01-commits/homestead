@@ -46,6 +46,9 @@ function start(state: SimState): void {
   }
   resize();
   window.addEventListener('resize', resize);
+  // iOS can settle the home-screen viewport after launch without a window
+  // resize event, so also follow the container itself.
+  new ResizeObserver(resize).observe(root);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
