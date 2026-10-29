@@ -12,7 +12,7 @@ import {
 } from 'three';
 import type { Content } from '../content';
 import { IsoCamera } from './camera';
-import { COLORS, RENDER } from './config';
+import { COLORS, LIGHTING, RENDER } from './config';
 
 export class World {
   readonly renderer: WebGLRenderer;
@@ -31,16 +31,16 @@ export class World {
     this.iso = new IsoCamera(content.camera);
 
     // One hemisphere plus one directional light, per DESIGN.md's performance rules.
-    this.scene.add(new HemisphereLight(COLORS.sky, COLORS.hemiGround, 1.6));
-    this.sun = new DirectionalLight(COLORS.sun, 2.2);
-    this.sun.position.set(-12, 30, 18);
+    this.scene.add(new HemisphereLight(COLORS.sky, COLORS.hemiGround, LIGHTING.hemiIntensity));
+    this.sun = new DirectionalLight(COLORS.sun, LIGHTING.sunIntensity);
+    this.sun.position.set(...LIGHTING.sunPosition);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(RENDER.shadowMapSize, RENDER.shadowMapSize);
     const cam = this.sun.shadow.camera;
     cam.left = cam.bottom = -RENDER.shadowExtent;
     cam.right = cam.top = RENDER.shadowExtent;
     cam.near = 1;
-    cam.far = 80;
+    cam.far = RENDER.shadowFar;
     this.scene.add(this.sun, this.sun.target);
 
     const ground = new Mesh(

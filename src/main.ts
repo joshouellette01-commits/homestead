@@ -1,13 +1,14 @@
 import { content } from './content';
 import { World } from './render/scene';
 
-const container = document.getElementById('app');
-if (!container) throw new Error('#app missing from index.html');
+const app = document.getElementById('app');
+if (!app) throw new Error('#app missing from index.html');
+const container: HTMLElement = app;
 
 const world = new World(container, content);
 
 function resize(): void {
-  world.resize(container!.clientWidth, container!.clientHeight);
+  world.resize(container.clientWidth, container.clientHeight);
 }
 resize();
 window.addEventListener('resize', resize);

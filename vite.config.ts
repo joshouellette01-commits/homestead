@@ -8,7 +8,6 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['apple-touch-icon.png'],
       manifest: {
         name: 'Homestead',
         short_name: 'Homestead',
