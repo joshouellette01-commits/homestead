@@ -8,24 +8,24 @@
     "pitchDeg": 35,
     "yawDeg": 45,
     "viewSize": 11,
-    "followLerpSeconds": 0.1
+    "followLerpSeconds": 0.15
   },
   "controls": {
     "joystickSizePx": 110,
-    "deadzone": 0.1,
-    "fullSpeedAt": 0.5
+    "deadzone": 0.05,
+    "fullSpeedAt": 0.49
   },
   "player": {
     "spawn": { "x": 0, "z": 0 },
     "radius": 0.4,
     "capacity": 10,
-    "walkSpeed": 4.0,
-    "swingSeconds": 0.8
+    "walkSpeed": 6,
+    "swingSeconds": 0.75
   },
   "feel": {
-    "stackItemHeight": 0.22,
+    "stackItemHeight": 0.21,
     "stackSwayStiffness": 60,
-    "stackSwayDamping": 7,
+    "stackSwayDamping": 2,
     "stackSwayPerSpeed": 0.05,
     "stackSwayMax": 0.35,
     "turnSpeed": 14,
