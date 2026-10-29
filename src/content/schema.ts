@@ -23,12 +23,29 @@ export interface CameraContent {
   followLerpSeconds: number;
 }
 
+export interface ControlsContent {
+  /** Joystick deflection (0..1) below which the player stands still. */
+  deadzone: number;
+  /** Deflection at which the player reaches full walk speed. */
+  fullSpeedAt: number;
+}
+
 export interface PlayerContent {
   spawn: Vec2;
   radius: number;
   capacity: number;
   walkSpeed: number;
   swingSeconds: number;
+}
+
+/** Look-and-feel numbers tuned on the phone in phase 2. */
+export interface FeelContent {
+  stackItemHeight: number;
+  stackSwayStiffness: number;
+  stackSwayDamping: number;
+  /** Sway at the top of the stack per unit of walk speed, before the spring. */
+  stackSwayPerSpeed: number;
+  stackSwayMax: number;
 }
 
 export interface InteractionContent {
@@ -55,7 +72,17 @@ export interface NodeTypeContent {
 }
 
 export interface NodeContent extends Vec2 {
+  id: string;
   type: string;
+}
+
+export type PropKind = 'sellTable';
+
+/** A solid object the player walks around. */
+export interface PropContent extends Vec2 {
+  id: string;
+  kind: PropKind;
+  radius: number;
 }
 
 export type PadKind = 'sell';
@@ -71,6 +98,7 @@ export interface ZoneContent {
   gateCost: number;
   bounds: Bounds;
   nodes: NodeContent[];
+  props: PropContent[];
   pads: PadContent[];
 }
 
@@ -78,7 +106,9 @@ export interface Content {
   contentVersion: number;
   world: { width: number; depth: number };
   camera: CameraContent;
+  controls: ControlsContent;
   player: PlayerContent;
+  feel: FeelContent;
   interaction: InteractionContent;
   items: Record<string, ItemContent>;
   nodeTypes: Record<string, NodeTypeContent>;

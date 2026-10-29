@@ -4,6 +4,8 @@ import type {
   Bounds,
   CameraContent,
   Content,
+  ControlsContent,
+  FeelContent,
   InteractionContent,
   ItemContent,
   ItemKind,
@@ -12,6 +14,8 @@ import type {
   PadContent,
   PadKind,
   PlayerContent,
+  PropContent,
+  PropKind,
   Vec2,
   ZoneContent,
 } from './schema';
@@ -100,6 +104,27 @@ function camera(value: unknown, path: string): CameraContent {
   };
 }
 
+function controls(value: unknown, path: string): ControlsContent {
+  const o = obj(value, path);
+  const c = {
+    deadzone: num(o, 'deadzone', path, { min: 0 }),
+    fullSpeedAt: positive(o, 'fullSpeedAt', path),
+  };
+  if (c.fullSpeedAt <= c.deadzone || c.fullSpeedAt > 1) fail(path, 'need deadzone < fullSpeedAt <= 1');
+  return c;
+}
+
+function feel(value: unknown, path: string): FeelContent {
+  const o = obj(value, path);
+  return {
+    stackItemHeight: positive(o, 'stackItemHeight', path),
+    stackSwayStiffness: positive(o, 'stackSwayStiffness', path),
+    stackSwayDamping: num(o, 'stackSwayDamping', path, { min: 0 }),
+    stackSwayPerSpeed: num(o, 'stackSwayPerSpeed', path, { min: 0 }),
+    stackSwayMax: num(o, 'stackSwayMax', path, { min: 0 }),
+  };
+}
+
 function player(value: unknown, path: string): PlayerContent {
   const o = obj(value, path);
   return {
@@ -123,6 +148,7 @@ function interaction(value: unknown, path: string): InteractionContent {
 
 const ITEM_KINDS: readonly ItemKind[] = ['raw', 'processed', 'feed'];
 const PAD_KINDS: readonly PadKind[] = ['sell'];
+const PROP_KINDS: readonly PropKind[] = ['sellTable'];
 
 function item(value: unknown, path: string): ItemContent {
   const o = obj(value, path);
@@ -146,7 +172,17 @@ function nodeType(value: unknown, path: string): NodeTypeContent {
 
 function node(value: unknown, path: string): NodeContent {
   const o = obj(value, path);
-  return { type: str(o, 'type', path), ...vec2(o, path) };
+  return { id: str(o, 'id', path), type: str(o, 'type', path), ...vec2(o, path) };
+}
+
+function prop(value: unknown, path: string): PropContent {
+  const o = obj(value, path);
+  return {
+    id: str(o, 'id', path),
+    kind: oneOf(o, 'kind', path, PROP_KINDS),
+    radius: positive(o, 'radius', path),
+    ...vec2(o, path),
+  };
 }
 
 function pad(value: unknown, path: string): PadContent {
@@ -162,6 +198,7 @@ function zone(value: unknown, path: string): ZoneContent {
     gateCost: num(o, 'gateCost', path, { min: 0 }),
     bounds: bounds(o.bounds, `${path}.bounds`),
     nodes: arr(o.nodes, `${path}.nodes`).map((n, i) => node(n, `${path}.nodes[${i}]`)),
+    props: arr(o.props, `${path}.props`).map((p, i) => prop(p, `${path}.props[${i}]`)),
     pads: arr(o.pads, `${path}.pads`).map((p, i) => pad(p, `${path}.pads[${i}]`)),
   };
 }
@@ -172,17 +209,20 @@ function checkReferences(c: Content): void {
     if (!c.items[nt.item]) fail(`nodeTypes.${id}.item`, `unknown item "${nt.item}"`);
   }
   const zoneIds = new Set<string>();
-  const padIds = new Set<string>();
+  const objectIds = new Set<string>();
+  const claimId = (id: string, path: string): void => {
+    if (objectIds.has(id)) fail(path, `duplicate id "${id}"`);
+    objectIds.add(id);
+  };
   c.zones.forEach((z, zi) => {
     if (zoneIds.has(z.id)) fail(`zones[${zi}].id`, `duplicate zone id "${z.id}"`);
     zoneIds.add(z.id);
     z.nodes.forEach((n, ni) => {
+      claimId(n.id, `zones[${zi}].nodes[${ni}].id`);
       if (!c.nodeTypes[n.type]) fail(`zones[${zi}].nodes[${ni}].type`, `unknown node type "${n.type}"`);
     });
-    z.pads.forEach((p, pi) => {
-      if (padIds.has(p.id)) fail(`zones[${zi}].pads[${pi}].id`, `duplicate pad id "${p.id}"`);
-      padIds.add(p.id);
-    });
+    z.props.forEach((p, pi) => claimId(p.id, `zones[${zi}].props[${pi}].id`));
+    z.pads.forEach((p, pi) => claimId(p.id, `zones[${zi}].pads[${pi}].id`));
   });
 }
 
@@ -193,7 +233,9 @@ export function parseContent(raw: unknown): Content {
     contentVersion: num(o, 'contentVersion', '(root)', { min: 1, int: true }),
     world: { width: positive(world, 'width', 'world'), depth: positive(world, 'depth', 'world') },
     camera: camera(o.camera, 'camera'),
+    controls: controls(o.controls, 'controls'),
     player: player(o.player, 'player'),
+    feel: feel(o.feel, 'feel'),
     interaction: interaction(o.interaction, 'interaction'),
     items: record(o.items, 'items', item),
     nodeTypes: record(o.nodeTypes, 'nodeTypes', nodeType),
