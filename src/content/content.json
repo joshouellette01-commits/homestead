@@ -7,7 +7,7 @@
   "camera": {
     "pitchDeg": 35,
     "yawDeg": 45,
-    "viewSize": 16,
+    "viewSize": 11,
     "followLerpSeconds": 0.1
   },
   "controls": {
@@ -52,7 +52,7 @@
         { "id": "yard-tree-3", "type": "tree", "x": -5, "z": -5 }
       ],
       "props": [
-        { "id": "yard-sell-table", "kind": "sellTable", "x": 2.2, "z": 0.7, "radius": 0.5 }
+        { "id": "yard-sell-table", "kind": "sellTable", "x": 3.8, "z": 0.7, "radius": 0.5 }
       ],
       "pads": [
         { "id": "yard-sell", "kind": "sell", "x": 3, "z": 1.5 }
