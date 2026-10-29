@@ -1,0 +1,48 @@
+{
+  "contentVersion": 1,
+  "world": {
+    "width": 120,
+    "depth": 120
+  },
+  "camera": {
+    "pitchDeg": 35,
+    "yawDeg": 45,
+    "viewSize": 16,
+    "followLerpSeconds": 0.1
+  },
+  "player": {
+    "spawn": { "x": 0, "z": 0 },
+    "radius": 0.4,
+    "capacity": 10,
+    "walkSpeed": 4.0,
+    "swingSeconds": 0.8
+  },
+  "interaction": {
+    "padRadius": 1.0,
+    "transferPerSecond": 10,
+    "minPadSpacing": 3,
+    "minUpgradePlotToInputPadSpacing": 3
+  },
+  "items": {
+    "log": { "name": "Log", "kind": "raw", "sellPrice": 1 }
+  },
+  "nodeTypes": {
+    "tree": { "item": "log", "yield": 5, "regrowSeconds": 20, "radius": 0.6, "harvestRange": 1.2 }
+  },
+  "zones": [
+    {
+      "id": "yard",
+      "name": "Yard",
+      "gateCost": 0,
+      "bounds": { "minX": -12, "maxX": 12, "minZ": -12, "maxZ": 12 },
+      "nodes": [
+        { "type": "tree", "x": -3.5, "z": -2 },
+        { "type": "tree", "x": -2, "z": -4.5 },
+        { "type": "tree", "x": -5, "z": -5 }
+      ],
+      "pads": [
+        { "id": "yard-sell", "kind": "sell", "x": 3, "z": 1.5 }
+      ]
+    }
+  ]
+}
