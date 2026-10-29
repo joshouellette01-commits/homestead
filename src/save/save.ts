@@ -1,7 +1,7 @@
 // Moves game state in and out of localStorage. Never wipes a save on its own:
 // a save that fails to load is reported as corrupt and left untouched.
 import { TRACK_IDS, type Content } from '../content';
-import { buildingPlots, machineOf, maxLevel, padUnderPlayer, playerStats } from '../sim/plots';
+import { buildingPlots, inputCapacity, machineOf, maxLevel, padUnderPlayer, playerStats, upgradeLevels } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import { SaveTooNewError, migrate } from './migrate';
 import { SAVE_KEY, SAVE_VERSION, type SaveData } from './schema';
@@ -61,7 +61,7 @@ export function toSave(s: SimState, settings: Record<string, unknown> = {}): Sav
   for (const n of s.nodes) nodes[n.id] = { remaining: n.remaining, regrowLeft: n.regrowLeft };
   const buildings: SaveData['buildings'] = {};
   for (const b of s.buildings) {
-    buildings[b.plotId] = { built: b.built, delivered: { ...b.delivered }, speedLevel: b.speedLevel, input: b.input, output: b.output };
+    buildings[b.plotId] = { built: b.built, delivered: { ...b.delivered }, level: b.level, inputs: { ...b.inputs }, output: b.output };
   }
   return {
     version: SAVE_VERSION,
@@ -70,6 +70,7 @@ export function toSave(s: SimState, settings: Record<string, unknown> = {}): Sav
     player: { x: s.player.x, z: s.player.z, stack: [...s.player.stack] },
     nodes,
     levels: { ...s.levels },
+    zones: Object.fromEntries(Object.entries(s.zones).filter(([, owned]) => owned)),
     buildings,
     settings,
   };
@@ -81,6 +82,7 @@ export function applySave(s: SimState, data: SaveData, c: Content): void {
   s.cash = Math.max(0, data.cash);
   s.time = Math.max(0, data.playTime);
   for (const track of TRACK_IDS) s.levels[track] = whole(data.levels[track] ?? 0, maxLevel(c, track));
+  for (const zone of c.zones) s.zones[zone.id] = zone.gateCost === 0 || data.zones[zone.id] === true;
   s.player.x = data.player.x;
   s.player.z = data.player.z;
   s.player.stack = data.player.stack.filter((item) => Object.hasOwn(c.items, item)).slice(0, playerStats(s, c).capacity);
@@ -93,8 +95,11 @@ export function applySave(s: SimState, data: SaveData, c: Content): void {
     b.built = saved.built;
     b.delivered = {};
     for (const [item, need] of Object.entries(plot.materials)) b.delivered[item] = whole(saved.delivered[item] ?? 0, need);
-    b.speedLevel = whole(saved.speedLevel, c.buildingSpeed.levels);
-    b.input = whole(saved.input, m.machine.pileCapacity);
+    b.level = whole(saved.level, upgradeLevels(c, m.machine));
+    b.inputs = {};
+    for (const [item, where] of Object.entries(plot.site.inputs)) {
+      if ('pad' in where) b.inputs[item] = whole(saved.inputs[item] ?? 0, inputCapacity(m.machine));
+    }
     b.output = whole(saved.output, m.machine.pileCapacity);
   });
   // A save taken just after a purchase may have the player still on that

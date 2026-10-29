@@ -122,6 +122,10 @@ describe('selling', () => {
 
 const sawPlot = buildingPlots(c)[0]!;
 const saw = c.machines[sawPlot.machine]!;
+if (saw.kind !== 'processor') throw new Error('the Sawmill should be a processor');
+const sawInput = saw.inputs[0]!;
+const sawInputSite = sawPlot.site.inputs[sawInput]!;
+if (!('pad' in sawInputSite)) throw new Error('the Sawmill input should have its own pad');
 const needLogs = sawPlot.materials.log!;
 const ring = c.interaction.purchaseSeconds;
 
@@ -201,27 +205,27 @@ describe('building plots', () => {
 describe('machines', () => {
   it('turns input into output once per cycle', () => {
     const s = builtSawmill();
-    s.buildings[0]!.input = 5;
+    s.buildings[0]!.inputs = { [sawInput]: 5 };
     run(s, NO_INPUT, cycleSeconds(c, saw, 0) * 2 + 0.01);
-    expect(s.buildings[0]).toMatchObject({ input: 3, output: 2 });
+    expect(s.buildings[0]).toMatchObject({ inputs: { [sawInput]: 3 }, output: 2 });
   });
 
   it('idles when the output pile is full', () => {
     const s = builtSawmill();
-    s.buildings[0]!.input = 5;
+    s.buildings[0]!.inputs = { [sawInput]: 5 };
     s.buildings[0]!.output = saw.pileCapacity;
     run(s, NO_INPUT, saw.cycleSeconds * 3);
-    expect(s.buildings[0]).toMatchObject({ input: 5, output: saw.pileCapacity });
+    expect(s.buildings[0]).toMatchObject({ inputs: { [sawInput]: 5 }, output: saw.pileCapacity });
   });
 
   it('input pad takes only the machine input, while walking too, up to the pile capacity', () => {
-    const s = standOn(builtSawmill(), sawPlot.site.inputPad);
-    s.buildings[0]!.input = saw.pileCapacity - 2;
+    const s = standOn(builtSawmill(), sawInputSite.pad);
+    s.buildings[0]!.inputs = { [sawInput]: saw.pileCapacity - 2 };
     s.player.stack = ['plank', 'log', 'log', 'log'];
     // Creep so slowly the player stays on the pad, but the joystick is held.
     run(s, { x: c.controls.deadzone + 0.001, z: 0 }, 0.5);
     expect(s.player.stack).toEqual(['plank', 'log']);
-    expect(s.buildings[0]!.input).toBe(saw.pileCapacity);
+    expect(s.buildings[0]!.inputs[sawInput]).toBe(saw.pileCapacity);
   });
 
   it('output pad loads finished goods onto the stack up to capacity', () => {
@@ -237,7 +241,7 @@ describe('machines', () => {
   it('the built machine blocks walking and replaces its plot pad with a speed plot', () => {
     const s = builtSawmill();
     const ids = activePads(s, c).map((p) => p.id);
-    expect(ids).toContain(`${sawPlot.id}-speed`);
+    expect(ids).toContain(`${sawPlot.id}-upgrade`);
     expect(ids).not.toContain(sawPlot.id);
     standOn(s, sawPlot.site);
     run(s, { x: 0.001, z: 1 }, SIM_DT);
@@ -285,9 +289,9 @@ describe('upgrades', () => {
 
     const s = standOn(builtSawmill(), sawPlot);
     s.cash = 100000;
-    expect(padUnderPlayer(s, c)?.kind).toBe('speed');
+    expect(padUnderPlayer(s, c)?.kind).toBe('upgrade');
     run(s, NO_INPUT, ring + 0.05);
-    expect(s.buildings[0]!.speedLevel).toBe(1);
+    expect(s.buildings[0]!.level).toBe(1);
     expect(s.cash).toBe(100000 - speedCost(c, saw, 1));
   });
 
@@ -296,6 +300,6 @@ describe('upgrades', () => {
     s.cash = 100000;
     s.buildings[0]!.delivered = { log: needLogs };
     run(s, NO_INPUT, ring * 3);
-    expect(s.buildings[0]).toMatchObject({ built: true, speedLevel: 0 });
+    expect(s.buildings[0]).toMatchObject({ built: true, level: 0 });
   });
 });

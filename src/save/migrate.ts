@@ -19,6 +19,21 @@ type Raw = Record<string, unknown>;
 export const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
   // v2 (phase 3): character upgrade levels and building plots, none bought yet.
   1: (save) => ({ ...save, levels: {}, buildings: {} }),
+  // v3 (phase 4): zone gates, and machines with several inputs. Every v2
+  // building was the Sawmill, whose only input is logs; speedLevel became level.
+  2: (save) => {
+    const buildings: Raw = {};
+    const old = isObj(save.buildings) ? save.buildings : {};
+    for (const [id, b] of Object.entries(old)) {
+      if (!isObj(b)) {
+        buildings[id] = b;
+        continue;
+      }
+      const { speedLevel, input, ...rest } = b;
+      buildings[id] = { ...rest, level: speedLevel, inputs: { log: input } };
+    }
+    return { ...save, buildings, zones: {} };
+  },
 };
 
 function isObj(v: unknown): v is Raw {
@@ -62,13 +77,22 @@ function validate(raw: Raw): SaveData {
     if (!isObj(b.delivered)) throw new SaveError(`${path}.delivered: expected an object`);
     const delivered: Record<string, number> = {};
     for (const [item, n] of Object.entries(b.delivered)) delivered[item] = finite(n, `${path}.delivered.${item}`);
+    if (!isObj(b.inputs)) throw new SaveError(`${path}.inputs: expected an object`);
+    const inputs: Record<string, number> = {};
+    for (const [item, n] of Object.entries(b.inputs)) inputs[item] = finite(n, `${path}.inputs.${item}`);
     buildings[id] = {
       built: b.built,
       delivered,
-      speedLevel: finite(b.speedLevel, `${path}.speedLevel`),
-      input: finite(b.input, `${path}.input`),
+      level: finite(b.level, `${path}.level`),
+      inputs,
       output: finite(b.output, `${path}.output`),
     };
+  }
+  if (!isObj(raw.zones)) throw new SaveError('zones: expected an object');
+  const zones: Record<string, boolean> = {};
+  for (const [id, owned] of Object.entries(raw.zones)) {
+    if (typeof owned !== 'boolean') throw new SaveError(`zones.${id}: expected true or false`);
+    zones[id] = owned;
   }
   const settings = raw.settings ?? {};
   if (!isObj(settings)) throw new SaveError('settings: expected an object');
@@ -79,6 +103,7 @@ function validate(raw: Raw): SaveData {
     player: { x: finite(player.x, 'player.x'), z: finite(player.z, 'player.z'), stack },
     nodes,
     levels,
+    zones,
     buildings,
     settings,
   };

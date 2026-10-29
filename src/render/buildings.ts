@@ -15,7 +15,7 @@ import {
   type Scene,
 } from 'three';
 import type { BuildingPlotContent, Content, MachineContent, Vec2 } from '../content';
-import { buildingPlots, cycleSeconds } from '../sim/plots';
+import { buildingPlots, cycleSeconds, inputSource, machineInputs } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import { BUILDINGS, COLORS, ITEM_COLORS, PILE } from './config';
 import { ItemInstances } from './items';
@@ -31,11 +31,14 @@ interface BuildingView {
   pads: Array<{ x: number; z: number; material: MeshLambertMaterial; ring: Mesh; icon: Mesh }>;
   built: boolean;
   /** Items still flying into each pile; hidden until they land. */
-  incoming: { input: number; output: number };
+  incoming: { inputs: Record<string, number>; output: number };
   /** Seconds since it was built, for the pop-in; Infinity once settled. */
   sinceBuilt: number;
   opacity: number;
 }
+
+/** One of a building's piles: an input pile by item, or its output pile. */
+export type PileRef = 'output' | { input: string };
 
 interface MachineMesh {
   root: Group;
@@ -113,7 +116,12 @@ export class BuildingsView {
     buildingPlots(content).forEach((plot, i) => {
       const machine = content.machines[plot.machine];
       const { site } = plot;
-      const front = { x: (site.inputPad.x + site.outputPad.x) / 2, z: (site.inputPad.z + site.outputPad.z) / 2 };
+      // Faces the middle of its own pads, where the player works it.
+      const ownPads = [...Object.values(site.inputs).flatMap((w) => ('pad' in w ? [w.pad] : [])), site.outputPad];
+      const front = {
+        x: ownPads.reduce((sum, p) => sum + p.x, 0) / ownPads.length,
+        z: ownPads.reduce((sum, p) => sum + p.z, 0) / ownPads.length,
+      };
       const size = footprint(machine);
       const build = MACHINE_MESHES[plot.machine] ?? sawmill;
       const { root, blade, materials } = build(size.width, size.depth);
@@ -130,15 +138,18 @@ export class BuildingsView {
       scene.add(ghost);
 
       const pads: BuildingView['pads'] = [];
-      const items = machine ? [machine.input, machine.output] : [];
-      [site.inputPad, site.outputPad].forEach((at, k) => {
+      const padItems: Array<{ at: Vec2; item: string }> = Object.entries(site.inputs).flatMap(([item, w]) =>
+        'pad' in w ? [{ at: w.pad, item }] : [],
+      );
+      if (machine) padItems.push({ at: site.outputPad, item: machine.output });
+      padItems.forEach(({ at, item }) => {
         const material = new MeshLambertMaterial({ color: COLORS.pad });
         const ring = new Mesh(padGeo, material);
         ring.rotation.x = -Math.PI / 2;
         ring.position.set(at.x, 0.01, at.z);
         ring.receiveShadow = true;
         // Which item the pad takes or gives, drawn in its centre.
-        const icon = new Mesh(iconGeo, new MeshLambertMaterial({ color: ITEM_COLORS[items[k] ?? ''] ?? COLORS.unknownItem }));
+        const icon = new Mesh(iconGeo, new MeshLambertMaterial({ color: ITEM_COLORS[item] ?? COLORS.unknownItem }));
         icon.rotation.set(-Math.PI / 2, 0, Math.PI / 4);
         icon.position.set(at.x, 0.012, at.z);
         scene.add(ring, icon);
@@ -154,7 +165,7 @@ export class BuildingsView {
         materials,
         pads,
         built,
-        incoming: { input: 0, output: 0 },
+        incoming: { inputs: {}, output: 0 },
         sinceBuilt: Infinity,
         opacity: 1,
       };
@@ -202,8 +213,8 @@ export class BuildingsView {
       }
       if (!b.built) return;
 
-      const running = b.input > 0 && b.output < machine.pileCapacity;
-      if (running) v.blade.rotation.y += dt * (BUILDINGS.bladeTurnsPerCycle * Math.PI * 2) / cycleSeconds(this.content, machine, b.speedLevel);
+      const running = b.output < machine.pileCapacity && machineInputs(machine).every((item) => (inputSource(s, this.content, i, item)?.count ?? 0) > 0);
+      if (running) v.blade.rotation.y += dt * (BUILDINGS.bladeTurnsPerCycle * Math.PI * 2) / cycleSeconds(this.content, machine, b.level);
 
       for (const p of v.pads) {
         const on = Math.hypot(playerX - p.x, playerZ - p.z) <= r;
@@ -218,7 +229,9 @@ export class BuildingsView {
       v.opacity += (target - v.opacity) * Math.min(1, dt * BUILDINGS.fadeSpeed);
       for (const m of v.materials) m.opacity = v.opacity;
 
-      this.writePile(v.plot.site.inputPile, machine.input, b.input - v.incoming.input, v.root.rotation.y);
+      for (const [item, where] of Object.entries(v.plot.site.inputs)) {
+        if ('pile' in where) this.writePile(where.pile, item, (b.inputs[item] ?? 0) - (v.incoming.inputs[item] ?? 0), v.root.rotation.y);
+      }
       this.writePile(v.plot.site.outputPile, machine.output, b.output - v.incoming.output, v.root.rotation.y);
     });
     this.pileItems.end();
@@ -236,21 +249,31 @@ export class BuildingsView {
     return angle + (cross ? Math.PI / 2 : 0);
   }
 
-  /** Slot k of a building's input or output pile in world space; returns the item's yaw there. */
-  pileSlotWorld(building: number, which: 'input' | 'output', k: number, out: Vector3): number {
+  private pileAt(v: BuildingView, which: PileRef): Vec2 {
+    if (which === 'output') return v.plot.site.outputPile;
+    const where = v.plot.site.inputs[which.input];
+    return where && 'pile' in where ? where.pile : v.plot.site;
+  }
+
+  /** Slot k of one of a building's piles in world space; returns the item's yaw there. */
+  pileSlotWorld(building: number, which: PileRef, k: number, out: Vector3): number {
     const v = this.views[building];
     if (!v) return 0;
-    return this.pileSlot(which === 'input' ? v.plot.site.inputPile : v.plot.site.outputPile, k, v.root.rotation.y, out);
+    return this.pileSlot(this.pileAt(v, which), k, v.root.rotation.y, out);
   }
 
   /** Counts an item flying into a pile; returns the call that lands it. */
-  expect(building: number, which: 'input' | 'output'): () => void {
+  expect(building: number, which: PileRef): () => void {
     const v = this.views[building];
     if (!v) return () => {};
-    v.incoming[which] += 1;
-    return () => {
-      v.incoming[which] = Math.max(0, v.incoming[which] - 1);
-    };
+    const { incoming } = v;
+    if (which === 'output') {
+      incoming.output += 1;
+      return () => void (incoming.output = Math.max(0, incoming.output - 1));
+    }
+    const item = which.input;
+    incoming.inputs[item] = (incoming.inputs[item] ?? 0) + 1;
+    return () => void (incoming.inputs[item] = Math.max(0, (incoming.inputs[item] ?? 0) - 1));
   }
 
   private writePile(at: Vec2, item: string, count: number, angle: number): void {

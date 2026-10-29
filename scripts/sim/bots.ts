@@ -6,6 +6,7 @@ import {
   activePads,
   buildingPlots,
   builtMachine,
+  inputCapacity,
   materialsDone,
   padUnderPlayer,
   playerStats,
@@ -126,7 +127,7 @@ export function timesBought(s: SimState, c: Content, padId: string): number {
     const b = s.buildings[i];
     if (!plot || !b) continue;
     if (plot.id === padId) return b.built ? 1 : 0;
-    if (`${plot.id}-speed` === padId) return b.speedLevel;
+    if (`${plot.id}-upgrade` === padId) return b.level;
   }
   return 0;
 }
@@ -181,7 +182,7 @@ abstract class Planner implements Bot {
     for (const pad of pads) {
       if (pad.kind !== 'input') continue;
       const m = builtMachine(s, c, pad.building);
-      if (m && m.b.input < m.machine.pileCapacity && p.stack.includes(m.machine.input)) return standOn(s, c, pad);
+      if (m && (m.b.inputs[pad.item] ?? 0) < inputCapacity(m.machine) && p.stack.includes(pad.item)) return standOn(s, c, pad);
     }
     // Pick up finished goods while there is room.
     if (p.stack.length < capacity) {

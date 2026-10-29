@@ -13,19 +13,21 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Content, TrackId } from '../content';
-import { activePads, buildingPlots, materialsDone, plotPrice, type ActivePad } from '../sim/plots';
+import { activePads, buildingPlots, materialsDone, plotPrice, upgradeLevels, type ActivePad } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import { COLORS, ITEM_COLORS, PLOTS } from './config';
 
 const hex = (color: number): string => `#${color.toString(16).padStart(6, '0')}`;
 
 // Small inline icons for the plot labels: what each plot upgrades.
-const ICONS: Record<TrackId | 'speed', string> = {
+const ICONS: Record<TrackId | 'speed' | 'herd' | 'gate', string> = {
   capacity:
     '<svg viewBox="0 0 20 20"><rect x="3" y="13" width="14" height="4" rx="1"/><rect x="3" y="8" width="14" height="4" rx="1"/><rect x="3" y="3" width="14" height="4" rx="1"/></svg>',
   walkSpeed: '<svg viewBox="0 0 20 20"><path d="M3 4l6 6-6 6V4zm8 0l6 6-6 6V4z"/></svg>',
   swingSeconds:
     '<svg viewBox="0 0 20 20"><rect x="9" y="5" width="2.4" height="13" rx="1"/><path d="M5 3h9a3 3 0 0 1 0 6H5c1-1 1-5 0-6z"/></svg>',
+  herd: '<svg viewBox="0 0 20 20"><path d="M10 3.5a3 3 0 0 1 3 3v1.2l2.3 1.1-2.3.9V11a4.5 4.5 0 1 1-6-4.2V6.5a3 3 0 0 1 3-3z"/></svg>',
+  gate: '<svg viewBox="0 0 20 20"><rect x="2" y="4" width="2.4" height="13"/><rect x="15.6" y="4" width="2.4" height="13"/><rect x="4" y="7" width="12" height="2.2"/><rect x="4" y="12" width="12" height="2.2"/><path d="M4 9.2l12 2.8v2.2L4 11.4z"/></svg>',
   speed:
     '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M10 5v5.5l3.5 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
 };
@@ -86,8 +88,8 @@ export class PlotsView {
     for (const zone of content.zones) {
       for (const p of zone.plots) {
         add(p.id, p.x, p.z);
-        // Same spot: the speed plot shows once the building stands.
-        if (p.kind === 'building') add(`${p.id}-speed`, p.x, p.z);
+        // Same spot: the upgrade plot shows once the building stands.
+        if (p.kind === 'building') add(`${p.id}-upgrade`, p.x, p.z);
       }
     }
   }
@@ -125,16 +127,18 @@ export class PlotsView {
     }
   }
 
-  /** A character or speed plot whose last level is bought: it stays, labelled MAX. */
+  /** A character or building upgrade plot whose last level is bought: it stays, labelled MAX. */
   private isMaxed(s: SimState, id: string): boolean {
     for (const zone of this.content.zones) {
       for (const p of zone.plots) {
         if (p.kind === 'character' && p.id === id) return s.levels[p.track] >= this.content.characterTracks[p.track].values.length - 1;
       }
     }
-    const index = buildingPlots(this.content).findIndex((p) => `${p.id}-speed` === id);
+    const plots = buildingPlots(this.content);
+    const index = plots.findIndex((p) => `${p.id}-upgrade` === id);
     const b = s.buildings[index];
-    return b !== undefined && b.built && b.speedLevel >= this.content.buildingSpeed.levels;
+    const machine = this.content.machines[plots[index]?.machine ?? ''];
+    return b !== undefined && machine !== undefined && b.built && b.level >= upgradeLevels(this.content, machine);
   }
 
   private labelHtml(s: SimState, pad: ActivePad): string {
@@ -142,7 +146,11 @@ export class PlotsView {
     if (!price) return '';
     const parts: string[] = [];
     if (pad.kind === 'character') parts.push(`<span class="plot-icon">${ICONS[pad.track]}</span>`);
-    if (pad.kind === 'speed') parts.push(`<span class="plot-icon">${ICONS.speed}</span>`);
+    if (pad.kind === 'upgrade') {
+      const machine = this.content.machines[buildingPlots(this.content)[pad.building]?.machine ?? ''];
+      parts.push(`<span class="plot-icon">${machine?.kind === 'animals' ? ICONS.herd : ICONS.speed}</span>`);
+    }
+    if (pad.kind === 'gate') parts.push(`<span class="plot-icon">${ICONS.gate}</span>`);
     for (const m of price.materials) {
       if (m.have >= m.need) continue;
       const color = hex(ITEM_COLORS[m.item] ?? COLORS.unknownItem);

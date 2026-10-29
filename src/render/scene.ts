@@ -43,7 +43,7 @@ export class World {
   private readonly buildings: BuildingsView;
   private readonly flights: FlightsView;
   /** Pad id to the building it belongs to and which of its pads it is. */
-  private readonly buildingPads = new Map<string, { building: number; kind: 'input' | 'output' | 'build' }>();
+  private readonly buildingPads = new Map<string, { building: number; kind: 'input' | 'output' | 'build'; item?: string }>();
   private readonly from = new Vector3();
   private readonly to = new Vector3();
   private shadows = true;
@@ -92,7 +92,7 @@ export class World {
     this.flights = new FlightsView(this.scene, models.log, content);
     buildingPlots(content).forEach((plot, building) => {
       this.buildingPads.set(plot.id, { building, kind: 'build' });
-      this.buildingPads.set(`${plot.id}-input`, { building, kind: 'input' });
+      for (const item of Object.keys(plot.site.inputs)) this.buildingPads.set(`${plot.id}-input-${item}`, { building, kind: 'input', item });
       this.buildingPads.set(`${plot.id}-output`, { building, kind: 'output' });
     });
 
@@ -141,8 +141,9 @@ export class World {
         const b = pad && state.buildings[pad.building];
         if (!pad || !b) continue;
         if (pad.kind === 'input') {
-          const pileYaw = this.buildings.pileSlotWorld(pad.building, 'input', b.input - 1, this.to);
-          this.flights.launch(e.item, this.from, this.to, yaw, pileYaw, this.buildings.expect(pad.building, 'input'));
+          const pile = { input: e.item };
+          const pileYaw = this.buildings.pileSlotWorld(pad.building, pile, (b.inputs[e.item] ?? 1) - 1, this.to);
+          this.flights.launch(e.item, this.from, this.to, yaw, pileYaw, this.buildings.expect(pad.building, pile));
         } else {
           // Materials go into the plot: fly to the middle of its footprint.
           const site = buildingPlots(this.content)[pad.building]?.site;

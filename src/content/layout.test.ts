@@ -84,8 +84,8 @@ describe('validateLayout', () => {
     const c = parseContent(raw);
     const plot = c.zones[0]!.plots.find((p) => p.kind === 'building')!;
     if (plot.kind !== 'building') throw new Error('expected a building plot');
-    plot.site.inputPad = { x: plot.site.x + 0.5, z: plot.site.z };
-    expect(validateLayout(layoutFromContent(c))).toContainEqual(expect.stringMatching(/pad yard-sawmill-input cannot be stood on/));
+    plot.site.inputs.log = { pad: { x: plot.site.x + 0.5, z: plot.site.z }, pile: { x: 0, z: 0 } };
+    expect(validateLayout(layoutFromContent(c))).toContainEqual(expect.stringMatching(/pad yard-sawmill-input-log cannot be stood on/));
   });
 
   it('rule 4: flags a pad on the trip from an output pad to the sell pad', () => {

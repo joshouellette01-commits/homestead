@@ -85,6 +85,8 @@ export interface NodeTypeContent {
   regrowSeconds: number;
   radius: number;
   harvestRange: number;
+  /** Trees block walking; crops can be walked through. */
+  solid: boolean;
 }
 
 export interface NodeContent extends Vec2 {
@@ -117,16 +119,41 @@ export interface TrackContent {
   costs: number[];
 }
 
-/** A 1-input, 1-output machine. */
-export interface MachineContent {
+/** Makes one output per cycle from one of each input. */
+export interface ProcessorContent {
+  kind: 'processor';
   name: string;
-  input: string;
+  inputs: string[];
   output: string;
   cycleSeconds: number;
   /** Input and output piles each hold this many. */
   pileCapacity: number;
   /** Collision radius of the building. */
   radius: number;
+}
+
+/** Animals that eat feed from a trough and produce only while it has some. */
+export interface AnimalsContent {
+  kind: 'animals';
+  name: string;
+  feed: string;
+  output: string;
+  /** Animals before herd upgrades. */
+  animals: number;
+  /** Seconds for one animal to make one item; each item eats one feed. */
+  secondsPerItem: number;
+  troughCapacity: number;
+  /** The output pile holds this many. */
+  pileCapacity: number;
+  /** Collision radius of the building and its pen. */
+  radius: number;
+}
+
+export type MachineContent = ProcessorContent | AnimalsContent;
+
+/** Herd upgrades: one more animal per level, each priced as a fraction of the building's cash cost. */
+export interface HerdUpgradeContent {
+  costFractions: number[];
 }
 
 /** Building speed upgrades, shared by every machine. */
@@ -138,15 +165,18 @@ export interface BuildingSpeedContent {
   costMinutes: number;
 }
 
+/** Where an input arrives: a pad and pile of its own, or straight from another building's output pile. */
+export type InputSiteContent = { pad: Vec2; pile: Vec2 } | { from: string };
+
 /** Where a machine stands once built, and its pads and piles. */
 export interface SiteContent extends Vec2 {
-  inputPad: Vec2;
+  /** Keyed by input item (the feed, for animals). */
+  inputs: Record<string, InputSiteContent>;
   outputPad: Vec2;
-  inputPile: Vec2;
   outputPile: Vec2;
 }
 
-/** A dashed plot that becomes a machine; once built, the same spot sells its speed upgrades. */
+/** A dashed plot that becomes a machine; once built, the same spot sells its speed or herd upgrades. */
 export interface BuildingPlotContent extends Vec2 {
   id: string;
   kind: 'building';
@@ -164,7 +194,14 @@ export interface CharacterPlotContent extends Vec2 {
   track: TrackId;
 }
 
-export type PlotContent = BuildingPlotContent | CharacterPlotContent;
+/** The plot that buys a zone; it stands in the zone it is reached from. */
+export interface GatePlotContent extends Vec2 {
+  id: string;
+  kind: 'gate';
+  zone: string;
+}
+
+export type PlotContent = BuildingPlotContent | CharacterPlotContent | GatePlotContent;
 
 export interface ZoneContent {
   id: string;
@@ -190,5 +227,6 @@ export interface Content {
   characterTracks: Record<TrackId, TrackContent>;
   machines: Record<string, MachineContent>;
   buildingSpeed: BuildingSpeedContent;
+  herdUpgrade: HerdUpgradeContent;
   zones: ZoneContent[];
 }

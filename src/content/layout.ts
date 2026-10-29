@@ -90,7 +90,7 @@ export function validateLayout(l: Layout): string[] {
 
   // Rule 3: upgrade plots sit at least minUpgradePlotToInputPadSpacing from any input pad.
   for (const plot of l.pads.filter((p) => p.kind === 'upgradePlot')) {
-    for (const input of l.pads.filter((p) => p.kind === 'input')) {
+    for (const input of l.pads.filter((p) => p.kind === 'input' || p.kind === 'trough')) {
       const d = dist(plot, input);
       if (d < l.minUpgradePlotToInputPadSpacing) {
         errors.push(`upgrade plot ${plot.id} is ${f(d)} from input pad ${input.id} (min ${l.minUpgradePlotToInputPadSpacing})`);
@@ -132,39 +132,59 @@ export function layoutFromContent(c: Content): Layout {
   const solids: LayoutSolid[] = [];
   const piles: LayoutPile[] = [];
   const walks: LayoutWalk[] = [];
+  /** Input pads by the item they take, with their zone. */
+  const inputPads: Array<{ pad: LayoutPad; item: string; zone: string }> = [];
+  const outputs: Array<{ pad: LayoutPad; item: string; zone: string }> = [];
+
+  // Buildings are checked as if built: the plot pad becomes the upgrade plot,
+  // beside the building and its pads. Before building only the plot pad
+  // exists, so a layout that passes built also passes unbuilt.
   for (const zone of c.zones) {
     for (const p of zone.pads) pads.push({ id: p.id, kind: p.kind, x: p.x, z: p.z });
     for (const p of zone.props) solids.push({ id: p.id, x: p.x, z: p.z, r: p.radius });
     for (const n of zone.nodes) {
       const type = c.nodeTypes[n.type];
-      if (type) solids.push({ id: n.id, x: n.x, z: n.z, r: type.radius });
+      if (type?.solid) solids.push({ id: n.id, x: n.x, z: n.z, r: type.radius });
     }
-    const sellPads = zone.pads.filter((p) => p.kind === 'sell');
     for (const plot of zone.plots) {
-      if (plot.kind === 'character') {
-        pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z });
-        continue;
-      }
-      // Checked as if built: the plot pad becomes the speed plot, beside the
-      // building and its pads. Before building, only the plot pad exists, so
-      // a layout that passes built also passes unbuilt.
+      if (plot.kind === 'character') pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z });
+      if (plot.kind === 'gate') pads.push({ id: plot.id, kind: 'plot', x: plot.x, z: plot.z });
+      if (plot.kind !== 'building') continue;
       const machine = c.machines[plot.machine];
       const { site } = plot;
-      const input = { id: `${plot.id}-input`, kind: 'input' as const, ...site.inputPad };
-      const output = { id: `${plot.id}-output`, kind: 'output' as const, ...site.outputPad };
-      pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z }, input, output);
+      pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z });
       if (machine) solids.push({ id: plot.id, x: site.x, z: site.z, r: machine.radius });
-      // Trips the player makes: pile to its pad, output pad to each sell pad,
-      // and each node that feeds the machine to its input pad.
-      piles.push({ id: `${plot.id}-output-pile`, ...site.outputPile, feeds: [output.id] });
-      piles.push({ id: `${plot.id}-input-pile`, ...site.inputPile, feeds: [input.id] });
-      piles.push({ id: output.id, x: output.x, z: output.z, feeds: sellPads.map((p) => p.id) });
-      for (const n of zone.nodes) {
-        if (!machine || c.nodeTypes[n.type]?.item !== machine.input) continue;
-        piles.push({ id: n.id, x: n.x, z: n.z, feeds: [input.id] });
-        walks.push({ from: n, to: input });
+      for (const [item, where] of Object.entries(site.inputs)) {
+        if (!('pad' in where)) continue;
+        const pad: LayoutPad = { id: `${plot.id}-input-${item}`, kind: machine?.kind === 'animals' ? 'trough' : 'input', ...where.pad };
+        pads.push(pad);
+        inputPads.push({ pad, item, zone: zone.id });
+        piles.push({ id: `${pad.id}-pile`, ...where.pile, feeds: [pad.id] });
       }
-      for (const sell of sellPads) walks.push({ from: output, to: sell });
+      const output: LayoutPad = { id: `${plot.id}-output`, kind: 'output', ...site.outputPad };
+      pads.push(output);
+      piles.push({ id: `${output.id}-pile`, ...site.outputPile, feeds: [output.id] });
+      if (machine) outputs.push({ pad: output, item: machine.output, zone: zone.id });
+    }
+  }
+
+  // Trips the player makes. An output pad (a source in its own right) feeds
+  // its zone's sell pads and any input pad in the zone that takes its item;
+  // each node feeds the input pads that take what it gives. Rule 4 checks
+  // trips inside a zone; rule 5 checks distances wherever the trip goes.
+  for (const zone of c.zones) {
+    const sellPads = zone.pads.filter((p) => p.kind === 'sell');
+    for (const out of outputs.filter((o) => o.zone === zone.id)) {
+      const downstream = inputPads.filter((i) => i.zone === zone.id && i.item === out.item).map((i) => i.pad.id);
+      piles.push({ id: out.pad.id, x: out.pad.x, z: out.pad.z, feeds: [...sellPads.map((p) => p.id), ...downstream] });
+      for (const sell of sellPads) walks.push({ from: out.pad, to: sell });
+    }
+    for (const n of zone.nodes) {
+      const item = c.nodeTypes[n.type]?.item;
+      const targets = inputPads.filter((i) => i.item === item);
+      const sameZone = targets.filter((i) => i.zone === zone.id).map((i) => i.pad.id);
+      if (sameZone.length > 0) piles.push({ id: n.id, x: n.x, z: n.z, feeds: sameZone });
+      for (const t of targets) walks.push({ from: n, to: t.pad });
     }
   }
   return {

@@ -5,6 +5,9 @@ import {
   buildingPlots,
   builtMachine,
   cycleSeconds,
+  inputCapacity,
+  inputSource,
+  machineInputs,
   materialsDone,
   padUnderPlayer,
   playerStats,
@@ -40,16 +43,16 @@ interface Circle {
   r: number;
 }
 
-/** Zones the player can walk in. Gates arrive in phase 4; until then, free zones only. */
-export function ownedZoneBounds(c: Content): Bounds[] {
-  return c.zones.filter((z) => z.gateCost === 0).map((z) => z.bounds);
+/** Zones the player can walk in: free ones and those bought through a gate. */
+export function ownedZoneBounds(s: SimState, c: Content): Bounds[] {
+  return c.zones.filter((z) => s.zones[z.id]).map((z) => z.bounds);
 }
 
 function obstacles(s: SimState, c: Content): Circle[] {
   const out: Circle[] = [];
   for (const n of s.nodes) {
     const type = c.nodeTypes[n.type];
-    if (type) out.push({ x: n.x, z: n.z, r: type.radius });
+    if (type?.solid) out.push({ x: n.x, z: n.z, r: type.radius });
   }
   for (const zone of c.zones) for (const p of zone.props) out.push({ x: p.x, z: p.z, r: p.radius });
   const plots = buildingPlots(c);
@@ -121,7 +124,7 @@ function clampToBounds(s: SimState, c: Content): void {
   const r = c.player.radius;
   let best: { x: number; z: number } | null = null;
   let bestD = Infinity;
-  for (const b of ownedZoneBounds(c)) {
+  for (const b of ownedZoneBounds(s, c)) {
     const x = Math.min(Math.max(p.x, b.minX + r), b.maxX - r);
     const z = Math.min(Math.max(p.z, b.minZ + r), b.maxZ - r);
     const d = Math.hypot(x - p.x, z - p.z);
@@ -174,21 +177,28 @@ function harvest(s: SimState, c: Content, dt: number, events: SimEvent[]): void 
   if (p.harvesting < 0) p.swingTimer = 0;
 }
 
-/** Built machines turn one input into one output per cycle, idling when the input is empty or the output full. */
+/**
+ * Built machines make one output per cycle from one of each input, idling
+ * while any input is empty or the output pile is full. Animal buildings work
+ * the same way, with their feed as the one input and more animals as a
+ * shorter cycle.
+ */
 function runMachines(s: SimState, c: Content, dt: number, events: SimEvent[]): void {
   s.buildings.forEach((_, i) => {
     const m = builtMachine(s, c, i);
     if (!m) return;
     const { b, machine } = m;
-    const cycle = cycleSeconds(c, machine, b.speedLevel);
-    if (b.input <= 0 || b.output >= machine.pileCapacity) {
+    const cycle = cycleSeconds(c, machine, b.level);
+    const ready = (): boolean =>
+      b.output < machine.pileCapacity && machineInputs(machine).every((item) => (inputSource(s, c, i, item)?.count ?? 0) > 0);
+    if (!ready()) {
       b.cycle = 0;
       return;
     }
     b.cycle += dt;
-    while (b.cycle + EPS >= cycle && b.input > 0 && b.output < machine.pileCapacity) {
+    while (b.cycle + EPS >= cycle && ready()) {
       b.cycle -= cycle;
-      b.input -= 1;
+      for (const item of machineInputs(machine)) inputSource(s, c, i, item)?.take();
       b.output += 1;
       events.push({ type: 'produce', building: i });
     }
@@ -218,12 +228,13 @@ function transferStep(s: SimState, pad: ActivePad, input: SimInput, c: Content):
     }
     case 'input': {
       const m = builtMachine(s, c, pad.building);
-      if (!m || m.b.input >= m.machine.pileCapacity || !p.stack.includes(m.machine.input)) return null;
-      const { b, machine } = m;
+      const { item } = pad;
+      if (!m || (m.b.inputs[item] ?? 0) >= inputCapacity(m.machine) || !p.stack.includes(item)) return null;
+      const { b } = m;
       return () => {
-        takeFromStack(p.stack, machine.input);
-        b.input += 1;
-        return { type: 'deliver', pad: pad.id, item: machine.input };
+        takeFromStack(p.stack, item);
+        b.inputs[item] = (b.inputs[item] ?? 0) + 1;
+        return { type: 'deliver', pad: pad.id, item };
       };
     }
     case 'output': {
@@ -292,14 +303,16 @@ function purchase(s: SimState, pad: ActivePad | null, c: Content, dt: number, ev
   ring.locked = true;
   if (pad.kind === 'character') {
     s.levels[pad.track] += 1;
+  } else if (pad.kind === 'gate') {
+    s.zones[pad.zone] = true;
   } else if (pad.kind === 'build') {
     const b = s.buildings[pad.building];
     if (b) b.built = true;
     // The new building may overlap where the player stands.
     settle(s, c);
-  } else if (pad.kind === 'speed') {
+  } else if (pad.kind === 'upgrade') {
     const b = s.buildings[pad.building];
-    if (b) b.speedLevel += 1;
+    if (b) b.level += 1;
   }
   events.push({ type: 'purchase', pad: pad.id, cash: price.cash });
 }

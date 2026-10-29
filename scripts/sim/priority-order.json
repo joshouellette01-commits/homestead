@@ -3,11 +3,11 @@
   "order": [
     "yard-sawmill",
     "yard-capacity",
-    "yard-sawmill-speed",
+    "yard-sawmill-upgrade",
     "yard-walkSpeed",
     "yard-capacity",
-    "yard-sawmill-speed",
+    "yard-sawmill-upgrade",
     "yard-swingSeconds",
-    "yard-sawmill-speed"
+    "yard-sawmill-upgrade"
   ]
 }

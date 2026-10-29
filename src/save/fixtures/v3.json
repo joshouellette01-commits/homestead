@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "cash": 620,
+  "playTime": 2400,
+  "player": { "x": -6, "z": -20, "stack": ["wheat", "wheat", "flour"] },
+  "nodes": {
+    "yard-tree-1": { "remaining": 5, "regrowLeft": 0 },
+    "yard-tree-2": { "remaining": 0, "regrowLeft": 4 },
+    "yard-tree-3": { "remaining": 2, "regrowLeft": 0 }
+  },
+  "levels": { "capacity": 2, "walkSpeed": 1, "swingSeconds": 1 },
+  "zones": { "field": true },
+  "buildings": {
+    "yard-sawmill": { "built": true, "delivered": { "log": 15 }, "level": 2, "inputs": { "log": 8 }, "output": 3 }
+  },
+  "settings": {}
+}

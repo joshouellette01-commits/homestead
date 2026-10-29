@@ -47,7 +47,7 @@
     "plank": { "name": "Plank", "kind": "processed", "sellPrice": 3 }
   },
   "nodeTypes": {
-    "tree": { "item": "log", "yield": 5, "regrowSeconds": 20, "radius": 0.6, "harvestRange": 1.5 }
+    "tree": { "item": "log", "yield": 5, "regrowSeconds": 20, "radius": 0.6, "harvestRange": 1.5, "solid": true }
   },
   "characterTracks": {
     "capacity": { "values": [10, 15, 20, 30, 40, 50], "costs": [80, 300, 1000, 3000, 8000] },
@@ -55,9 +55,10 @@
     "swingSeconds": { "values": [0.75, 0.7, 0.6, 0.5], "costs": [80, 300, 1000] }
   },
   "machines": {
-    "sawmill": { "name": "Sawmill", "input": "log", "output": "plank", "cycleSeconds": 3, "pileCapacity": 30, "radius": 1.3 }
+    "sawmill": { "kind": "processor", "name": "Sawmill", "inputs": ["log"], "output": "plank", "cycleSeconds": 3, "pileCapacity": 30, "radius": 1.3 }
   },
   "buildingSpeed": { "levels": 3, "cycleMultiplier": 0.67, "costMinutes": 4 },
+  "herdUpgrade": { "costFractions": [0.5, 1, 2] },
   "zones": [
     {
       "id": "yard",
@@ -88,9 +89,8 @@
           "site": {
             "x": 1.41,
             "z": 5.09,
-            "inputPad": { "x": 0.42, "z": 8.06 },
+            "inputs": { "log": { "pad": { "x": 0.42, "z": 8.06 }, "pile": { "x": -0.85, "z": 7.07 } } },
             "outputPad": { "x": 4.6, "z": 4.31 },
-            "inputPile": { "x": -0.85, "z": 7.07 },
             "outputPile": { "x": 5.87, "z": 3.89 }
           }
         },

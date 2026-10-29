@@ -2,7 +2,7 @@
 // migration in migrate.ts, and add a fixture of the old shape under fixtures/.
 
 export const SAVE_KEY = 'homestead.save';
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface NodeSave {
   remaining: number;
@@ -13,8 +13,10 @@ export interface BuildingSave {
   built: boolean;
   /** Materials carried into the plot so far. */
   delivered: Record<string, number>;
-  speedLevel: number;
-  input: number;
+  /** Speed level, or herd level for animal buildings. */
+  level: number;
+  /** Own input piles (or trough) by item id. */
+  inputs: Record<string, number>;
   output: number;
 }
 
@@ -32,6 +34,8 @@ export interface SaveData {
   nodes: Record<string, NodeSave>;
   /** Character upgrade level per track id. */
   levels: Record<string, number>;
+  /** Zones bought through a gate, by zone id. */
+  zones: Record<string, boolean>;
   /** Keyed by building plot id from content.json. */
   buildings: Record<string, BuildingSave>;
   settings: Record<string, unknown>;

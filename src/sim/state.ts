@@ -5,6 +5,8 @@ import type { Content, TrackId } from '../content';
 export interface NodeState {
   id: string;
   type: string;
+  /** Zone the node stands in; it can only be reached once that zone is owned. */
+  zone: string;
   x: number;
   z: number;
   /** Items left before the node needs to regrow. */
@@ -34,9 +36,11 @@ export interface BuildingState {
   built: boolean;
   /** Materials carried into the plot so far, by item id. */
   delivered: Record<string, number>;
-  speedLevel: number;
-  /** Items waiting in the input pile and finished in the output pile. */
-  input: number;
+  /** Speed level for processors, herd level for animal buildings. */
+  level: number;
+  /** Items waiting in each input pile (or trough) that the building owns, by item id. */
+  inputs: Record<string, number>;
+  /** Items finished in the output pile. */
   output: number;
   /** Seconds into the current cycle. */
   cycle: number;
@@ -58,6 +62,8 @@ export interface SimState {
   player: PlayerState;
   nodes: NodeState[];
   levels: Record<TrackId, number>;
+  /** Owned zones by id; free zones start owned. */
+  zones: Record<string, boolean>;
   buildings: BuildingState[];
   purchase: PurchaseState;
 }
@@ -76,14 +82,14 @@ export function createState(c: Content): SimState {
     for (const n of zone.nodes) {
       const type = c.nodeTypes[n.type];
       if (!type) throw new Error(`unknown node type ${n.type}`);
-      nodes.push({ id: n.id, type: n.type, x: n.x, z: n.z, remaining: type.yield, regrowLeft: 0 });
+      nodes.push({ id: n.id, type: n.type, zone: zone.id, x: n.x, z: n.z, remaining: type.yield, regrowLeft: 0 });
     }
   }
   const buildings: BuildingState[] = [];
   for (const zone of c.zones) {
     for (const plot of zone.plots) {
       if (plot.kind !== 'building') continue;
-      buildings.push({ plotId: plot.id, built: false, delivered: {}, speedLevel: 0, input: 0, output: 0, cycle: 0 });
+      buildings.push({ plotId: plot.id, built: false, delivered: {}, level: 0, inputs: {}, output: 0, cycle: 0 });
     }
   }
   return {
@@ -102,6 +108,7 @@ export function createState(c: Content): SimState {
     },
     nodes,
     levels: { capacity: 0, walkSpeed: 0, swingSeconds: 0 },
+    zones: Object.fromEntries(c.zones.map((z) => [z.id, z.gateCost === 0])),
     buildings,
     purchase: { pad: null, progress: 0, locked: false },
   };
