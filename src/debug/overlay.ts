@@ -55,10 +55,11 @@ function sliders(c: Content, world: World): Slider[] {
 }
 
 const CSS = `
-.dbg { position: absolute; left: calc(env(safe-area-inset-left) + 8px); bottom: calc(env(safe-area-inset-bottom) + 8px);
+/* Top-left under the carried pill: a Safari tab's floating toolbar covers the bottom. */
+.dbg { position: absolute; left: calc(env(safe-area-inset-left) + 8px); top: calc(env(safe-area-inset-top) + 64px);
   z-index: 1001; font: 12px/1.3 ui-monospace, Menlo, monospace; color: #fff; }
 .dbg-stats { background: rgba(0,0,0,.6); padding: 4px 8px; border-radius: 6px; display: inline-block; }
-.dbg-viewport { background: rgba(0,0,0,.6); padding: 2px 8px; border-radius: 6px; display: inline-block; margin-bottom: 4px; font-size: 11px; }
+.dbg-viewport { background: rgba(0,0,0,.6); padding: 2px 8px; border-radius: 6px; display: inline-block; max-width: calc(100vw - 96px); margin-bottom: 4px; font-size: 11px; }
 .dbg button { font: inherit; margin-left: 6px; padding: 4px 8px; border-radius: 6px; border: none; background: #f2c14e; color: #222; }
 .dbg-panel { margin-top: 6px; background: rgba(0,0,0,.75); padding: 8px; border-radius: 8px; width: min(320px, calc(100vw - 32px));
   max-height: 55vh; overflow-y: auto; touch-action: pan-y; }
