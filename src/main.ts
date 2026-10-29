@@ -6,6 +6,7 @@ import { World } from './render/scene';
 import { applySave, clearSave, getStorage, readSave, toSave, writeSave } from './save/save';
 import { createState, type SimState } from './sim/state';
 import { SIM_DT, settle, tick } from './sim/tick';
+import { registerUpdates } from './pwa';
 import { Hud, showDialog } from './ui/hud';
 
 const AUTOSAVE_SECONDS = 10;
@@ -15,6 +16,11 @@ if (!app) throw new Error('#app missing from index.html');
 const root: HTMLElement = app;
 
 const storage = getStorage();
+
+// Set once the game is running; until then (e.g. behind the corrupt-save
+// dialog) an update reload must not write over what is in storage.
+let saveNow: () => void = () => {};
+registerUpdates(() => saveNow());
 
 function start(state: SimState): void {
   const world = new World(root, content, state);
@@ -27,6 +33,7 @@ function start(state: SimState): void {
   const save = (): void => {
     writeSave(storage, toSave(state));
   };
+  saveNow = save;
   const hud = new Hud(
     root,
     () => {

@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "nipplejs": "1.0.4",
-    "three": "0.186.1"
+    "three": "0.186.1",
+    "workbox-window": "7.4.1"
   },
   "devDependencies": {
     "@types/node": "24.19.1",

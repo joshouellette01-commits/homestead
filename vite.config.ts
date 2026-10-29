@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered from src/pwa.ts so the game can save before an update reloads it.
+      injectRegister: false,
       manifest: {
         name: 'Homestead',
         short_name: 'Homestead',
@@ -25,6 +27,11 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Activate a new build as soon as it installs; src/pwa.ts then saves and reloads.
+        // Without these the new worker waits until every window of the app is closed.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,png,svg,json,glb,gltf,bin}'],
       },
     }),
