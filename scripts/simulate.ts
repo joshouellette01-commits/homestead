@@ -88,12 +88,12 @@ const targets = loadTargets('scripts/sim/targets.json');
 const priorityOrder = loadOrder('scripts/sim/priority-order.json');
 
 const minutesArg = process.argv.indexOf('--minutes');
-const minutes = minutesArg >= 0 ? Number(process.argv[minutesArg + 1]) : 60;
+const minutes = minutesArg >= 0 ? Number(process.argv[minutesArg + 1]) : 120;
 if (!Number.isFinite(minutes) || minutes <= 0) throw new Error('--minutes must be a positive number');
 
 const CHECKPOINTS = [1, 3, 5, 10, 30, 60, 120, 300].filter((m) => m <= minutes);
 /** Income is measured over this trailing window when pricing a purchase. */
-const INCOME_WINDOW_MINUTES = 3;
+const INCOME_WINDOW_MINUTES = 5;
 
 interface Purchase {
   time: number;

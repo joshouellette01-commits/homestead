@@ -169,21 +169,25 @@ export function layoutFromContent(c: Content): Layout {
   }
 
   // Trips the player makes. An output pad (a source in its own right) feeds
-  // its zone's sell pads and any input pad in the zone that takes its item;
-  // each node feeds the input pads that take what it gives. Rule 4 checks
-  // trips inside a zone; rule 5 checks distances wherever the trip goes.
+  // its zone's sell pads and every input pad that takes its item, in any zone
+  // (flour crosses from the Field into the Coop); each node feeds the input
+  // pads that take what it gives. Shared zone edges are open ground once
+  // both zones are owned, so straight lines are the real paths.
   for (const zone of c.zones) {
     const sellPads = zone.pads.filter((p) => p.kind === 'sell');
     for (const out of outputs.filter((o) => o.zone === zone.id)) {
-      const downstream = inputPads.filter((i) => i.zone === zone.id && i.item === out.item).map((i) => i.pad.id);
+      const downstream = inputPads.filter((i) => i.item === out.item).map((i) => i.pad.id);
       piles.push({ id: out.pad.id, x: out.pad.x, z: out.pad.z, feeds: [...sellPads.map((p) => p.id), ...downstream] });
       for (const sell of sellPads) walks.push({ from: out.pad, to: sell });
+    }
+    // Troughs, like machines, sit within reach of their zone's sell pad.
+    for (const trough of inputPads.filter((i) => i.zone === zone.id && i.pad.kind === 'trough')) {
+      for (const sell of sellPads) walks.push({ from: trough.pad, to: sell });
     }
     for (const n of zone.nodes) {
       const item = c.nodeTypes[n.type]?.item;
       const targets = inputPads.filter((i) => i.item === item);
-      const sameZone = targets.filter((i) => i.zone === zone.id).map((i) => i.pad.id);
-      if (sameZone.length > 0) piles.push({ id: n.id, x: n.x, z: n.z, feeds: sameZone });
+      if (targets.length > 0) piles.push({ id: n.id, x: n.x, z: n.z, feeds: targets.map((t) => t.pad.id) });
       for (const t of targets) walks.push({ from: n, to: t.pad });
     }
   }

@@ -200,10 +200,10 @@ function harvest(s: SimState, c: Content, dt: number, events: SimEvent[]): void 
 }
 
 /**
- * Built machines make one output per cycle from one of each input, idling
- * while any input is empty or the output pile is full. Animal buildings work
- * the same way, with their feed as the one input and more animals as a
- * shorter cycle.
+ * Built machines make one output per cycle from one of each input. While any
+ * input is empty or the output pile is full they pause, keeping the progress
+ * of the item in hand. Animal buildings work the same way, with their feed as
+ * the one input and more animals as a shorter cycle.
  */
 function runMachines(s: SimState, c: Content, dt: number, events: SimEvent[]): void {
   s.buildings.forEach((_, i) => {
@@ -213,10 +213,7 @@ function runMachines(s: SimState, c: Content, dt: number, events: SimEvent[]): v
     const cycle = cycleSeconds(c, machine, b.level);
     const ready = (): boolean =>
       b.output < machine.pileCapacity && machineInputs(machine).every((item) => (inputSource(s, c, i, item)?.count ?? 0) > 0);
-    if (!ready()) {
-      b.cycle = 0;
-      return;
-    }
+    if (!ready()) return;
     b.cycle += dt;
     while (b.cycle + EPS >= cycle && ready()) {
       b.cycle -= cycle;

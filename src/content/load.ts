@@ -149,6 +149,7 @@ function feel(value: unknown, path: string): FeelContent {
     walkBobPerUnit: num(o, 'walkBobPerUnit', path, { min: 0 }),
     treeShakeSeconds: positive(o, 'treeShakeSeconds', path),
     treeShakeAngle: num(o, 'treeShakeAngle', path, { min: 0 }),
+    cropShakeAngle: num(o, 'cropShakeAngle', path, { min: 0 }),
     transferFlightSeconds: positive(o, 'transferFlightSeconds', path),
     transferArcHeight: num(o, 'transferArcHeight', path, { min: 0 }),
   };
@@ -401,7 +402,12 @@ function checkReferences(c: Content): void {
       for (const item of inputs) {
         const where = p.site.inputs[item];
         if (!where) fail(`${path}.site.inputs`, `missing input "${item}"`);
-        if ('from' in where && !buildingIds.has(where.from)) fail(`${path}.site.inputs.${item}.from`, `unknown building plot "${where.from}"`);
+        if ('from' in where) {
+          if (!buildingIds.has(where.from)) fail(`${path}.site.inputs.${item}.from`, `unknown building plot "${where.from}"`);
+          const source = c.zones.flatMap((zz) => zz.plots).find((sp) => sp.id === where.from);
+          const made = source?.kind === 'building' ? c.machines[source.machine]?.output : undefined;
+          if (made !== item) fail(`${path}.site.inputs.${item}.from`, `"${where.from}" makes ${made ?? 'nothing'}, not ${item}`);
+        }
         if ('pad' in where) claimId(`${p.id}-input-${item}`, `${path}.site.inputs.${item}`);
       }
       for (const item of Object.keys(p.site.inputs)) {

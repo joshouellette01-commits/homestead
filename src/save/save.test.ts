@@ -38,6 +38,19 @@ describe('save fixtures', () => {
   }
 });
 
+describe('migrations keep what they carry', () => {
+  it("v2 keeps the Sawmill's level and logs", () => {
+    const data = migrate(fixtures['./fixtures/v2.json']?.default);
+    expect(data.buildings['yard-sawmill']).toMatchObject({ built: true, level: 1, inputs: { log: 12 }, output: 7 });
+  });
+
+  it('v3 restores owned zones', () => {
+    const s = createState(c);
+    applySave(s, migrate(fixtures['./fixtures/v3.json']?.default), c);
+    expect(s.zones).toMatchObject({ yard: true, field: true, coop: false });
+  });
+});
+
 describe('round trip', () => {
   it('restores what it saved', () => {
     const s = createState(c);

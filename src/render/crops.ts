@@ -63,8 +63,8 @@ export class CropsView {
       if (!n || !type) return;
       const shake = Math.max(0, (this.shake[slot] ?? 0) - dt);
       this.shake[slot] = shake;
-      const { treeShakeSeconds, treeShakeAngle } = this.content.feel;
-      const tilt = Math.sin(shake * 60) * treeShakeAngle * 2 * (shake / treeShakeSeconds);
+      const { treeShakeSeconds, cropShakeAngle } = this.content.feel;
+      const tilt = Math.sin(shake * 60) * cropShakeAngle * (shake / treeShakeSeconds);
       d.position.set(n.x, CROPS.lift, n.z);
       d.rotation.set(tilt, (slot * 1.3) % (Math.PI * 2), tilt * 0.6);
       if (n.remaining > 0) {

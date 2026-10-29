@@ -51,6 +51,14 @@ describe('parseContent', () => {
     expect(() => parseContent(bad)).toThrow(/unknown machine "forge"/);
   });
 
+  it('rejects an input taken from a building that makes something else', () => {
+    const bad = clone();
+    const zones = bad.zones as Array<{ plots: Array<{ id: string; site?: { inputs: Record<string, unknown> } }> }>;
+    const pat = zones.flatMap((z) => z.plots).find((p) => p.id === 'coop-patisserie')!;
+    pat.site!.inputs.egg = { from: 'field-mill' };
+    expect(() => parseContent(bad)).toThrow(/makes flour, not egg/);
+  });
+
   it('rejects a machine that makes an unknown item', () => {
     const bad = clone();
     (bad.machines as Record<string, Record<string, unknown>>).sawmill!.output = 'gold';

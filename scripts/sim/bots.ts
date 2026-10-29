@@ -7,6 +7,7 @@ import {
   buildingIndex,
   buildingPlots,
   builtMachine,
+  cycleSeconds,
   inputCapacity,
   inputSource,
   machineInputs,
@@ -140,6 +141,27 @@ function obtainable(s: SimState, c: Content, item: string, depth = 0): boolean {
     if (where && 'from' in where) return s.buildings[buildingIndex(c, where.from)]?.built === true && obtainable(s, c, input, depth + 1);
     return obtainable(s, c, input, depth + 1);
   });
+}
+
+/**
+ * Roughly how many of an item per minute the farm can make right now: what
+ * its nodes regrow, or its machine's speed, capped by its slowest input.
+ * Ignores two machines sharing one supply; good enough to rank goods.
+ */
+function rate(s: SimState, c: Content, item: string, depth = 0): number {
+  if (depth > MAX_DEPTH) return 0;
+  const swing = playerStats(s, c).swingSeconds;
+  let total = 0;
+  for (const n of nodesFor(s, c, item)) {
+    const type = c.nodeTypes[n.type];
+    if (type) total += (type.yield * 60) / (type.regrowSeconds + type.yield * swing);
+  }
+  const i = producer(s, c, item);
+  const m = i >= 0 ? builtMachine(s, c, i) : null;
+  if (!m) return total;
+  let made = 60 / cycleSeconds(c, m.machine, m.b.level);
+  for (const input of machineInputs(m.machine)) made = Math.min(made, rate(s, c, input, depth + 1));
+  return total + made;
 }
 
 function outputPad(pads: readonly ActivePad[], building: number): ActivePad | null {
@@ -281,14 +303,16 @@ abstract class Planner implements Bot {
     return null;
   }
 
-  /** The most valuable item it can come by right now. */
+  /** The good worth the most cash per minute that it can make right now. */
   private bestGood(s: SimState, c: Content): string | null {
     let best: string | null = null;
-    let bestPrice = -1;
+    let bestValue = -1;
     for (const [id, item] of Object.entries(c.items)) {
-      if (item.sellPrice > bestPrice && obtainable(s, c, id)) {
+      if (!obtainable(s, c, id)) continue;
+      const value = item.sellPrice * rate(s, c, id);
+      if (value > bestValue) {
         best = id;
-        bestPrice = item.sellPrice;
+        bestValue = value;
       }
     }
     return best;

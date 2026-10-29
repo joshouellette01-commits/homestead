@@ -367,6 +367,21 @@ describe('animals', () => {
     expect(s.buildings[coopIndex]).toMatchObject({ output: coop.animals, inputs: { [coop.feed]: 10 - coop.animals } });
   });
 
+  it('pause with an empty trough, keeping progress on the egg in hand', () => {
+    const s = builtCoop();
+    const b = s.buildings[coopIndex]!;
+    b.inputs = { [coop.feed]: 1 };
+    run(s, NO_INPUT, cycleSeconds(c, coop, 0) + 0.01);
+    expect(b.output).toBe(1);
+    // Trough empty: no progress lost, so feed finishes the next egg on time.
+    b.cycle = cycleSeconds(c, coop, 0) - 1;
+    run(s, NO_INPUT, 10);
+    expect(b.output).toBe(1);
+    b.inputs = { [coop.feed]: 1 };
+    run(s, NO_INPUT, 1.05);
+    expect(b.output).toBe(2);
+  });
+
   it('produce nothing with an empty trough', () => {
     const s = builtCoop();
     run(s, NO_INPUT, coop.secondsPerItem * 3);
