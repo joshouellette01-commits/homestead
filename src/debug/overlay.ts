@@ -1,7 +1,8 @@
 // ?debug only: fps and draw-call readout, plus sliders that edit content
 // values live so feel can be tuned on the phone. "Copy" produces the changed
 // values to paste back into content.json. Never shown in normal play.
-import type { Content } from '../content';
+import type { Content, TrackId } from '../content';
+import type { SimState } from '../sim/state';
 import type { World } from '../render/scene';
 import { viewportReport } from '../viewport';
 
@@ -37,11 +38,27 @@ function slider<K extends string>(
   };
 }
 
+/** Edits a track's starting value (level 0); the upgrade levels stay as content.json has them. */
+function baseSlider(label: string, c: Content, track: TrackId, range: [min: number, max: number, step: number]): Slider {
+  const values = c.characterTracks[track].values;
+  return {
+    label,
+    path: `characterTracks.${track}.values[0]`,
+    min: range[0],
+    max: range[1],
+    step: range[2],
+    get: () => values[0] ?? 0,
+    set: (v) => {
+      values[0] = v;
+    },
+  };
+}
+
 function sliders(c: Content, world: World): Slider[] {
   const refresh = (): void => world.iso.refresh();
   return [
-    slider('Walk speed', 'player', c.player, 'walkSpeed', [2, 8, 0.1]),
-    slider('Swing (s)', 'player', c.player, 'swingSeconds', [0.3, 1.5, 0.05]),
+    baseSlider('Walk speed', c, 'walkSpeed', [2, 10, 0.1]),
+    baseSlider('Swing (s)', c, 'swingSeconds', [0.3, 1.5, 0.05]),
     slider('View size', 'camera', c.camera, 'viewSize', [6, 20, 0.5], refresh),
     slider('Camera lerp (s)', 'camera', c.camera, 'followLerpSeconds', [0, 0.5, 0.01]),
     slider('Item height', 'feel', c.feel, 'stackItemHeight', [0.1, 0.4, 0.01]),
@@ -68,7 +85,10 @@ const CSS = `
 .dbg-out { width: 100%; height: 90px; margin-top: 6px; font: inherit; }
 `;
 
-export function createDebugOverlay(root: HTMLElement, content: Content, world: World): (dt: number) => void {
+/** Cash granted per tap of the debug "+cash" button, to test purchases quickly. Debug only. */
+const DEBUG_CASH = 100;
+
+export function createDebugOverlay(root: HTMLElement, content: Content, world: World, state: SimState): (dt: number) => void {
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
@@ -87,7 +107,12 @@ export function createDebugOverlay(root: HTMLElement, content: Content, world: W
   const toggle = document.createElement('button');
   toggle.textContent = 'Tune';
   const shadowBtn = document.createElement('button');
-  statsRow.append(stats, toggle, shadowBtn);
+  const cashBtn = document.createElement('button');
+  cashBtn.textContent = `+${DEBUG_CASH} cash`;
+  cashBtn.addEventListener('click', () => {
+    state.cash += DEBUG_CASH;
+  });
+  statsRow.append(stats, toggle, shadowBtn, cashBtn);
   box.appendChild(statsRow);
 
   const panel = document.createElement('div');

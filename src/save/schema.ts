@@ -2,11 +2,20 @@
 // migration in migrate.ts, and add a fixture of the old shape under fixtures/.
 
 export const SAVE_KEY = 'homestead.save';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface NodeSave {
   remaining: number;
   regrowLeft: number;
+}
+
+export interface BuildingSave {
+  built: boolean;
+  /** Materials carried into the plot so far. */
+  delivered: Record<string, number>;
+  speedLevel: number;
+  input: number;
+  output: number;
 }
 
 export interface SaveData {
@@ -21,5 +30,9 @@ export interface SaveData {
   };
   /** Keyed by node id from content.json. */
   nodes: Record<string, NodeSave>;
+  /** Character upgrade level per track id. */
+  levels: Record<string, number>;
+  /** Keyed by building plot id from content.json. */
+  buildings: Record<string, BuildingSave>;
   settings: Record<string, unknown>;
 }

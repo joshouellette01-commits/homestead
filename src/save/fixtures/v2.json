@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "cash": 140,
+  "playTime": 1260,
+  "player": { "x": 1, "z": 3, "stack": ["log", "plank", "plank"] },
+  "nodes": {
+    "yard-tree-1": { "remaining": 2, "regrowLeft": 0 },
+    "yard-tree-2": { "remaining": 0, "regrowLeft": 8.5 },
+    "yard-tree-3": { "remaining": 5, "regrowLeft": 0 }
+  },
+  "levels": { "capacity": 1, "walkSpeed": 0, "swingSeconds": 1 },
+  "buildings": {
+    "yard-sawmill": { "built": true, "delivered": { "log": 15 }, "speedLevel": 1, "input": 12, "output": 7 }
+  },
+  "settings": {}
+}

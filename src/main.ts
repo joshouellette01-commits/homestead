@@ -5,6 +5,7 @@ import { RENDER } from './render/config';
 import { World } from './render/scene';
 import { applySave, clearSave, getStorage, readSave, toSave, writeSave } from './save/save';
 import { createState, type SimState } from './sim/state';
+import { playerStats } from './sim/plots';
 import { SIM_DT, settle, tick } from './sim/tick';
 import { registerUpdates } from './pwa';
 import { Hud, showDialog } from './ui/hud';
@@ -73,7 +74,7 @@ function start(state: SimState): void {
   let debugFrame: ((dt: number) => void) | null = null;
   if (new URLSearchParams(location.search).has('debug')) {
     void import('./debug/overlay').then((m) => {
-      debugFrame = m.createDebugOverlay(root, content, world);
+      debugFrame = m.createDebugOverlay(root, content, world, state);
     });
   }
 
@@ -120,13 +121,14 @@ function start(state: SimState): void {
     world.render();
     debugFrame?.(dt);
 
-    const full = state.player.stack.length >= content.player.capacity;
+    const { capacity } = playerStats(state, content);
+    const full = state.player.stack.length >= capacity;
     let cap: { x: number; y: number } | null = null;
     if (full) {
       world.farmer.stackTopWorld(capWorld).project(world.iso.camera);
       cap = { x: ((capWorld.x + 1) / 2) * root.clientWidth, y: ((1 - capWorld.y) / 2) * root.clientHeight };
     }
-    hud.update(state.cash, state.player.stack.length, content.player.capacity, cap);
+    hud.update(state.cash, state.player.stack, capacity, cap);
   });
 }
 

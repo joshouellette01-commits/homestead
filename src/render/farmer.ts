@@ -31,6 +31,8 @@ export interface FarmerPose {
   /** 0..1 progress through the current swing, or null when not harvesting. */
   swing: number | null;
   stack: readonly string[];
+  /** Current carry capacity; the stack's sway is scaled to a full stack. */
+  capacity: number;
 }
 
 export class FarmerView {
@@ -124,7 +126,7 @@ export class FarmerView {
     }
 
     this.updateSway(pose, dt);
-    this.updateStack(pose.stack);
+    this.updateStack(pose.stack, pose.capacity);
   }
 
   private updateSway(pose: FarmerPose, dt: number): void {
@@ -144,14 +146,14 @@ export class FarmerView {
     }
   }
 
-  private updateStack(stack: readonly string[]): void {
+  private updateStack(stack: readonly string[], capacity: number): void {
     const f = this.content.feel;
     const n = Math.min(stack.length, MAX_STACK);
     const back = -FARMER.stackBackOffset;
     const baseX = this.root.position.x + Math.sin(this.heading) * back;
     const baseZ = this.root.position.z + Math.cos(this.heading) * back;
     const baseY = FARMER.stackBaseHeight + this.body.position.y;
-    const fullHeight = Math.max(1, this.content.player.capacity) * f.stackItemHeight;
+    const fullHeight = Math.max(1, capacity) * f.stackItemHeight;
 
     const d = this.dummy;
     for (let i = 0; i < n; i++) {

@@ -1,6 +1,8 @@
 // HUD: carried/capacity top-left, cash top-right, a pause button, and the
 // full-stack cap that floats over the stack. Nothing else, per DESIGN.md.
-import { ITEM_COLORS } from '../render/config';
+import { COLORS, ITEM_COLORS } from '../render/config';
+
+const hex = (color: number): string => `#${color.toString(16).padStart(6, '0')}`;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -13,18 +15,20 @@ const formatCash = new Intl.NumberFormat('en-US');
 
 export class Hud {
   private readonly carried: HTMLElement;
+  private readonly carriedIcon: HTMLElement;
   private readonly cash: HTMLElement;
   private readonly cap: HTMLElement;
   private readonly pauseOverlay: HTMLElement;
   private lastCarried = '';
   private lastCash = -1;
+  private lastTop = 'log';
 
   constructor(root: HTMLElement, onPause: () => void, onResume: () => void) {
     const hud = el('div', 'hud', root);
 
     const left = el('div', 'hud-pill hud-carried', hud);
-    const icon = el('span', 'hud-item-icon', left);
-    icon.style.background = `#${(ITEM_COLORS.log ?? 0).toString(16).padStart(6, '0')}`;
+    this.carriedIcon = el('span', 'hud-item-icon', left);
+    this.carriedIcon.style.background = hex(ITEM_COLORS.log ?? COLORS.unknownItem);
     this.carried = el('span', 'hud-value', left);
 
     const right = el('div', 'hud-right', hud);
@@ -50,7 +54,14 @@ export class Hud {
     this.pauseOverlay.hidden = !paused;
   }
 
-  update(cash: number, carried: number, capacity: number, capScreen: { x: number; y: number } | null): void {
+  update(cash: number, stack: readonly string[], capacity: number, capScreen: { x: number; y: number } | null): void {
+    const carried = stack.length;
+    // The icon shows the item on top of the stack; it keeps the last one while empty.
+    const top = stack[carried - 1];
+    if (top !== undefined && top !== this.lastTop) {
+      this.carriedIcon.style.background = hex(ITEM_COLORS[top] ?? COLORS.unknownItem);
+      this.lastTop = top;
+    }
     const text = `${carried}/${capacity}`;
     if (text !== this.lastCarried) {
       this.carried.textContent = text;

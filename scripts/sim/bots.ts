@@ -4,6 +4,7 @@
 import type { Content } from '../../src/content';
 import type { NodeState, SimInput, SimState } from '../../src/sim/state';
 import { NO_INPUT } from '../../src/sim/state';
+import { playerStats } from '../../src/sim/plots';
 
 export interface Bot {
   readonly name: string;
@@ -84,7 +85,7 @@ export class Hauler {
 
   decide(s: SimState, c: Content): SimInput {
     const p = s.player;
-    const full = p.stack.length >= c.player.capacity;
+    const full = p.stack.length >= playerStats(s, c).capacity;
     const anyReady = s.nodes.some((n) => n.remaining > 0);
     if (full || (p.stack.length > 0 && !anyReady)) this.selling = true;
     if (p.stack.length === 0) this.selling = false;

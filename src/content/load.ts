@@ -1,5 +1,16 @@
 // Checks raw JSON against the Content schema so a typo in content.json fails
 // loudly at startup (and in tests) instead of surfacing as NaN mid-game.
+import {
+  TRACK_IDS,
+  type BuildingPlotContent,
+  type BuildingSpeedContent,
+  type CharacterPlotContent,
+  type MachineContent,
+  type PlotContent,
+  type SiteContent,
+  type TrackContent,
+  type TrackId,
+} from './schema';
 import type {
   Bounds,
   CameraContent,
@@ -136,9 +147,6 @@ function player(value: unknown, path: string): PlayerContent {
   return {
     spawn: vec2(o.spawn, `${path}.spawn`),
     radius: positive(o, 'radius', path),
-    capacity: num(o, 'capacity', path, { min: 1, int: true }),
-    walkSpeed: positive(o, 'walkSpeed', path),
-    swingSeconds: positive(o, 'swingSeconds', path),
   };
 }
 
@@ -149,12 +157,100 @@ function interaction(value: unknown, path: string): InteractionContent {
     transferPerSecond: positive(o, 'transferPerSecond', path),
     minPadSpacing: positive(o, 'minPadSpacing', path),
     minUpgradePlotToInputPadSpacing: positive(o, 'minUpgradePlotToInputPadSpacing', path),
+    purchaseSeconds: positive(o, 'purchaseSeconds', path),
+    maxWalkSeconds: positive(o, 'maxWalkSeconds', path),
   };
 }
 
 const ITEM_KINDS: readonly ItemKind[] = ['raw', 'processed', 'feed'];
 const PAD_KINDS: readonly PadKind[] = ['sell'];
-const PROP_KINDS: readonly PropKind[] = ['sellTable'];
+const PROP_KINDS: readonly PropKind[] = ['sellTable', 'workbench'];
+const PLOT_KINDS = ['building', 'character'] as const;
+
+function numbers(value: unknown, path: string, check: (v: number, path: string) => void): number[] {
+  return arr(value, path).map((v, i) => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) fail(`${path}[${i}]`, 'expected a number');
+    check(v, `${path}[${i}]`);
+    return v;
+  });
+}
+
+function track(value: unknown, path: string, id: TrackId): TrackContent {
+  const o = obj(value, path);
+  const values = numbers(o.values, `${path}.values`, (v, p) => {
+    if (v <= 0) fail(p, 'must be > 0');
+    if (id === 'capacity' && !Number.isInteger(v)) fail(p, 'expected an integer');
+  });
+  const costs = numbers(o.costs, `${path}.costs`, (v, p) => {
+    if (v < 0) fail(p, 'must be >= 0');
+  });
+  if (values.length < 1) fail(`${path}.values`, 'needs at least the starting value');
+  if (costs.length !== values.length - 1) fail(`${path}.costs`, `needs one cost per level above 0 (${values.length - 1})`);
+  return { values, costs };
+}
+
+function characterTracks(value: unknown, path: string): Record<TrackId, TrackContent> {
+  const o = obj(value, path);
+  const t = (id: TrackId): TrackContent => track(o[id], `${path}.${id}`, id);
+  return { capacity: t('capacity'), walkSpeed: t('walkSpeed'), swingSeconds: t('swingSeconds') };
+}
+
+function machine(value: unknown, path: string): MachineContent {
+  const o = obj(value, path);
+  return {
+    name: str(o, 'name', path),
+    input: str(o, 'input', path),
+    output: str(o, 'output', path),
+    cycleSeconds: positive(o, 'cycleSeconds', path),
+    pileCapacity: num(o, 'pileCapacity', path, { min: 1, int: true }),
+    radius: positive(o, 'radius', path),
+  };
+}
+
+function buildingSpeed(value: unknown, path: string): BuildingSpeedContent {
+  const o = obj(value, path);
+  const b = {
+    levels: num(o, 'levels', path, { min: 0, int: true }),
+    cycleMultiplier: positive(o, 'cycleMultiplier', path),
+    costMinutes: positive(o, 'costMinutes', path),
+  };
+  if (b.cycleMultiplier >= 1) fail(`${path}.cycleMultiplier`, 'must be < 1 so each level is faster');
+  return b;
+}
+
+function site(value: unknown, path: string): SiteContent {
+  const o = obj(value, path);
+  return {
+    ...vec2(o, path),
+    inputPad: vec2(o.inputPad, `${path}.inputPad`),
+    outputPad: vec2(o.outputPad, `${path}.outputPad`),
+    inputPile: vec2(o.inputPile, `${path}.inputPile`),
+    outputPile: vec2(o.outputPile, `${path}.outputPile`),
+  };
+}
+
+function plot(value: unknown, path: string): PlotContent {
+  const o = obj(value, path);
+  const kind = oneOf(o, 'kind', path, PLOT_KINDS);
+  if (kind === 'building') {
+    const materials = record(o.materials, `${path}.materials`, (v, p) => {
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) fail(p, 'expected a whole number >= 1');
+      return v;
+    });
+    const b: BuildingPlotContent = {
+      id: str(o, 'id', path),
+      kind,
+      machine: str(o, 'machine', path),
+      cash: num(o, 'cash', path, { min: 0 }),
+      materials,
+      site: site(o.site, `${path}.site`),
+      ...vec2(o, path),
+    };
+    return b;
+  }
+  const ch: CharacterPlotContent = { id: str(o, 'id', path), kind, track: oneOf(o, 'track', path, TRACK_IDS), ...vec2(o, path) };
+  return ch;
+}
 
 function item(value: unknown, path: string): ItemContent {
   const o = obj(value, path);
@@ -206,6 +302,7 @@ function zone(value: unknown, path: string): ZoneContent {
     nodes: arr(o.nodes, `${path}.nodes`).map((n, i) => node(n, `${path}.nodes[${i}]`)),
     props: arr(o.props, `${path}.props`).map((p, i) => prop(p, `${path}.props[${i}]`)),
     pads: arr(o.pads, `${path}.pads`).map((p, i) => pad(p, `${path}.pads[${i}]`)),
+    plots: arr(o.plots, `${path}.plots`).map((p, i) => plot(p, `${path}.plots[${i}]`)),
   };
 }
 
@@ -213,6 +310,10 @@ function zone(value: unknown, path: string): ZoneContent {
 function checkReferences(c: Content): void {
   for (const [id, nt] of Object.entries(c.nodeTypes)) {
     if (!c.items[nt.item]) fail(`nodeTypes.${id}.item`, `unknown item "${nt.item}"`);
+  }
+  for (const [id, m] of Object.entries(c.machines)) {
+    if (!c.items[m.input]) fail(`machines.${id}.input`, `unknown item "${m.input}"`);
+    if (!c.items[m.output]) fail(`machines.${id}.output`, `unknown item "${m.output}"`);
   }
   const zoneIds = new Set<string>();
   const objectIds = new Set<string>();
@@ -229,6 +330,17 @@ function checkReferences(c: Content): void {
     });
     z.props.forEach((p, pi) => claimId(p.id, `zones[${zi}].props[${pi}].id`));
     z.pads.forEach((p, pi) => claimId(p.id, `zones[${zi}].pads[${pi}].id`));
+    z.plots.forEach((p, pi) => {
+      const path = `zones[${zi}].plots[${pi}]`;
+      claimId(p.id, `${path}.id`);
+      if (p.kind !== 'building') return;
+      // The built machine's speed plot takes this id.
+      claimId(`${p.id}-speed`, `${path}.id`);
+      if (!c.machines[p.machine]) fail(`${path}.machine`, `unknown machine "${p.machine}"`);
+      for (const item of Object.keys(p.materials)) {
+        if (!c.items[item]) fail(`${path}.materials`, `unknown item "${item}"`);
+      }
+    });
   });
 }
 
@@ -245,6 +357,9 @@ export function parseContent(raw: unknown): Content {
     interaction: interaction(o.interaction, 'interaction'),
     items: record(o.items, 'items', item),
     nodeTypes: record(o.nodeTypes, 'nodeTypes', nodeType),
+    characterTracks: characterTracks(o.characterTracks, 'characterTracks'),
+    machines: record(o.machines, 'machines', machine),
+    buildingSpeed: buildingSpeed(o.buildingSpeed, 'buildingSpeed'),
     zones: arr(o.zones, 'zones').map((z, i) => zone(z, `zones[${i}]`)),
   };
   checkReferences(content);

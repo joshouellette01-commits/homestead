@@ -32,12 +32,10 @@ export interface ControlsContent {
   fullSpeedAt: number;
 }
 
+/** Capacity, walk speed and swing time live in characterTracks, at level 0 to start. */
 export interface PlayerContent {
   spawn: Vec2;
   radius: number;
-  capacity: number;
-  walkSpeed: number;
-  swingSeconds: number;
 }
 
 /** Look-and-feel numbers tuned on the phone in phase 2. */
@@ -62,6 +60,10 @@ export interface InteractionContent {
   transferPerSecond: number;
   minPadSpacing: number;
   minUpgradePlotToInputPadSpacing: number;
+  /** Seconds standing on a plot for the purchase ring to fill. */
+  purchaseSeconds: number;
+  /** Layout rule: nodes to their machine, and machines to the sell pad, within this many seconds of walking. */
+  maxWalkSeconds: number;
 }
 
 export type ItemKind = 'raw' | 'processed' | 'feed';
@@ -85,7 +87,7 @@ export interface NodeContent extends Vec2 {
   type: string;
 }
 
-export type PropKind = 'sellTable';
+export type PropKind = 'sellTable' | 'workbench';
 
 /** A solid object the player walks around. */
 export interface PropContent extends Vec2 {
@@ -101,6 +103,64 @@ export interface PadContent extends Vec2 {
   kind: PadKind;
 }
 
+export type TrackId = 'capacity' | 'walkSpeed' | 'swingSeconds';
+export const TRACK_IDS: readonly TrackId[] = ['capacity', 'walkSpeed', 'swingSeconds'];
+
+/** A character upgrade track: values[0] is the starting stat, costs[i] buys level i + 1. */
+export interface TrackContent {
+  values: number[];
+  costs: number[];
+}
+
+/** A 1-input, 1-output machine. */
+export interface MachineContent {
+  name: string;
+  input: string;
+  output: string;
+  cycleSeconds: number;
+  /** Input and output piles each hold this many. */
+  pileCapacity: number;
+  /** Collision radius of the building. */
+  radius: number;
+}
+
+/** Building speed upgrades, shared by every machine. */
+export interface BuildingSpeedContent {
+  levels: number;
+  /** Cycle time is multiplied by this at each level. */
+  cycleMultiplier: number;
+  /** A level costs this many minutes of the income it adds, at sell prices. */
+  costMinutes: number;
+}
+
+/** Where a machine stands once built, and its pads and piles. */
+export interface SiteContent extends Vec2 {
+  inputPad: Vec2;
+  outputPad: Vec2;
+  inputPile: Vec2;
+  outputPile: Vec2;
+}
+
+/** A dashed plot that becomes a machine; once built, the same spot sells its speed upgrades. */
+export interface BuildingPlotContent extends Vec2 {
+  id: string;
+  kind: 'building';
+  machine: string;
+  cash: number;
+  /** Item id to count, carried in before the cash ring starts. */
+  materials: Record<string, number>;
+  site: SiteContent;
+}
+
+/** One of the Workbench's character upgrade plots. */
+export interface CharacterPlotContent extends Vec2 {
+  id: string;
+  kind: 'character';
+  track: TrackId;
+}
+
+export type PlotContent = BuildingPlotContent | CharacterPlotContent;
+
 export interface ZoneContent {
   id: string;
   name: string;
@@ -109,6 +169,7 @@ export interface ZoneContent {
   nodes: NodeContent[];
   props: PropContent[];
   pads: PadContent[];
+  plots: PlotContent[];
 }
 
 export interface Content {
@@ -121,5 +182,8 @@ export interface Content {
   interaction: InteractionContent;
   items: Record<string, ItemContent>;
   nodeTypes: Record<string, NodeTypeContent>;
+  characterTracks: Record<TrackId, TrackContent>;
+  machines: Record<string, MachineContent>;
+  buildingSpeed: BuildingSpeedContent;
   zones: ZoneContent[];
 }

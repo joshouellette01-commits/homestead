@@ -10,6 +10,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import type { Content } from '../content';
+import { playerStats } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import type { SimEvent } from '../sim/tick';
 import { IsoCamera } from './camera';
@@ -109,6 +110,7 @@ export class World {
     // While harvesting, face the node being worked.
     const node = p.harvesting >= 0 ? state.nodes[p.harvesting] : undefined;
     const moving = p.vx !== 0 || p.vz !== 0;
+    const stats = playerStats(state, this.content);
     const facing = node && !moving ? Math.atan2(node.x - x, node.z - z) : p.facing;
     this.farmer.update(
       {
@@ -117,8 +119,9 @@ export class World {
         vx: p.vx,
         vz: p.vz,
         facing,
-        swing: node ? p.swingTimer / this.content.player.swingSeconds : null,
+        swing: node ? p.swingTimer / stats.swingSeconds : null,
         stack: p.stack,
+        capacity: stats.capacity,
       },
       dt,
     );
