@@ -5,9 +5,19 @@
     "yard-capacity",
     "yard-sawmill-upgrade",
     "yard-walkSpeed",
+    "yard-field-gate",
+    "field-mill",
     "yard-capacity",
-    "yard-sawmill-upgrade",
+    "field-bakery",
+    "field-mill-upgrade",
     "yard-swingSeconds",
-    "yard-sawmill-upgrade"
+    "field-bakery-upgrade",
+    "field-coop-gate",
+    "coop-coop",
+    "coop-patisserie",
+    "coop-coop-upgrade",
+    "yard-capacity",
+    "coop-patisserie-upgrade",
+    "yard-walkSpeed"
   ]
 }

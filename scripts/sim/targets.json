@@ -1,8 +1,12 @@
 {
-  "comment": "Targets from DESIGN.md that the simulator reports against. Checks, not game numbers.",
+  "comment": "Targets from DESIGN.md that the simulator reports against. Checks, not game numbers. Each stage runs from the purchase of 'from' (or the start) to the purchase of 'until' (or the end).",
   "farmhouseHours": { "min": 4, "max": 6 },
-  "stage1HandCashPerMinute": 35,
-  "stage2HandCashPerMinute": 60,
+  "stages": [
+    { "name": "1 hand chopping", "until": "yard-sawmill", "cashPerMinute": 35 },
+    { "name": "2 hand-fed Sawmill", "from": "yard-sawmill", "until": "field-mill", "cashPerMinute": 60 },
+    { "name": "3 hand-fed Field", "from": "field-bakery", "until": "field-coop-gate", "cashPerMinute": 120 }
+  ],
   "yardPurchaseMinutes": { "min": 1, "max": 3 },
+  "majorPurchaseMinutes": { "min": 8, "max": 15 },
   "upgradeMinutes": { "min": 2, "max": 5 }
 }

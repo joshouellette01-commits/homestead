@@ -15,11 +15,20 @@ interface Band {
   max: number;
 }
 
+interface Stage {
+  name: string;
+  /** Starts when this plot is bought (or at the start). */
+  from: string | null;
+  /** Ends when this plot is bought (or at the end). */
+  until: string | null;
+  cashPerMinute: number;
+}
+
 interface Targets {
   farmhouseHours: Band;
-  stage1HandCashPerMinute: number;
-  stage2HandCashPerMinute: number;
+  stages: Stage[];
   yardPurchaseMinutes: Band;
+  majorPurchaseMinutes: Band;
   upgradeMinutes: Band;
 }
 
@@ -41,13 +50,27 @@ function band(obj: unknown, key: string, file: string): Band {
   return { min: number(b, 'min', file), max: number(b, 'max', file) };
 }
 
+function optionalId(obj: unknown, key: string, file: string): string | null {
+  if (typeof obj !== 'object' || obj === null || !(key in obj)) return null;
+  const v = (obj as Record<string, unknown>)[key];
+  if (typeof v !== 'string') throw new Error(`${file}: "${key}" must be a plot id`);
+  return v;
+}
+
 function loadTargets(file: string): Targets {
   const raw = readJson(file);
+  const stages = field(raw, 'stages', file);
+  if (!Array.isArray(stages)) throw new Error(`${file}: "stages" must be a list`);
   return {
     farmhouseHours: band(raw, 'farmhouseHours', file),
-    stage1HandCashPerMinute: number(raw, 'stage1HandCashPerMinute', file),
-    stage2HandCashPerMinute: number(raw, 'stage2HandCashPerMinute', file),
+    stages: stages.map((st) => ({
+      name: String(field(st, 'name', file)),
+      from: optionalId(st, 'from', file),
+      until: optionalId(st, 'until', file),
+      cashPerMinute: number(st, 'cashPerMinute', file),
+    })),
     yardPurchaseMinutes: band(raw, 'yardPurchaseMinutes', file),
+    majorPurchaseMinutes: band(raw, 'majorPurchaseMinutes', file),
     upgradeMinutes: band(raw, 'upgradeMinutes', file),
   };
 }
@@ -65,7 +88,7 @@ const targets = loadTargets('scripts/sim/targets.json');
 const priorityOrder = loadOrder('scripts/sim/priority-order.json');
 
 const minutesArg = process.argv.indexOf('--minutes');
-const minutes = minutesArg >= 0 ? Number(process.argv[minutesArg + 1]) : 30;
+const minutes = minutesArg >= 0 ? Number(process.argv[minutesArg + 1]) : 60;
 if (!Number.isFinite(minutes) || minutes <= 0) throw new Error('--minutes must be a positive number');
 
 const CHECKPOINTS = [1, 3, 5, 10, 30, 60, 120, 300].filter((m) => m <= minutes);
@@ -86,10 +109,8 @@ interface Result {
   bot: string;
   cashAt: Map<number, number>;
   purchases: Purchase[];
-  /** Income per minute from the start until the first machine was built. */
-  beforeMachine: number | null;
-  /** Income per minute over the last third of the run, if a machine stood by then. */
-  withMachine: number | null;
+  /** Income per minute over each stage in targets.json, or null if the run never reached it. */
+  stageIncome: Array<number | null>;
   idleShare: number;
 }
 
@@ -100,8 +121,16 @@ function materialValue(c: Content, padId: string): number {
   return Object.entries(plot.materials).reduce((sum, [item, n]) => sum + n * (c.items[item]?.sellPrice ?? 0), 0);
 }
 
+/** DESIGN.md's pacing rule: Yard buildings 1-3 minutes, gates and other buildings 8-15, upgrades 2-5. */
 function bandFor(c: Content, padId: string): Band {
-  return buildingPlots(c).some((p) => p.id === padId) ? targets.yardPurchaseMinutes : targets.upgradeMinutes;
+  for (const zone of c.zones) {
+    for (const p of zone.plots) {
+      if (p.id !== padId) continue;
+      if (p.kind === 'gate') return targets.majorPurchaseMinutes;
+      if (p.kind === 'building') return zone.gateCost === 0 ? targets.yardPurchaseMinutes : targets.majorPurchaseMinutes;
+    }
+  }
+  return targets.upgradeMinutes;
 }
 
 function run(bot: Bot, c: Content): Result {
@@ -112,7 +141,8 @@ function run(bot: Bot, c: Content): Result {
   // Gross earnings (sales), sampled once a second for trailing-window rates.
   const earnedAt: number[] = [0];
   let earned = 0;
-  let firstMachineAt: number | null = null;
+  /** When each plot pad was first bought, in seconds. */
+  const boughtAt = new Map<string, number>();
   let idleSteps = 0;
   let next = 0;
 
@@ -132,7 +162,7 @@ function run(bot: Bot, c: Content): Result {
         const cost = e.cash + materialValue(c, e.pad);
         const rate = rateOver(INCOME_WINDOW_MINUTES * 60);
         purchases.push({ time: t, pad: e.pad, cost, minutesOfIncome: rate > 0 ? cost / rate : Infinity, band: bandFor(c, e.pad) });
-        if (firstMachineAt === null && s.buildings.some((b) => b.built)) firstMachineAt = t;
+        if (!boughtAt.has(e.pad)) boughtAt.set(e.pad, t);
       }
     }
     // Idle: not moving, not harvesting, and the player did nothing this step.
@@ -147,15 +177,16 @@ function run(bot: Bot, c: Content): Result {
   }
 
   const total = minutes * 60;
-  const lastThird = total / 3;
-  return {
-    bot: bot.name,
-    cashAt,
-    purchases,
-    beforeMachine: firstMachineAt !== null && firstMachineAt > 0 ? ((earnedAt[Math.floor(firstMachineAt)] ?? 0) / firstMachineAt) * 60 : null,
-    withMachine: firstMachineAt !== null && firstMachineAt < total - lastThird ? rateOver(lastThird) : null,
-    idleShare: idleSteps / steps,
-  };
+  const earnedBy = (t: number): number => earnedAt[Math.min(earnedAt.length - 1, Math.floor(t))] ?? 0;
+  const stageIncome = targets.stages.map((st) => {
+    const start = st.from === null ? 0 : boughtAt.get(st.from);
+    if (start === undefined) return null;
+    const end = st.until === null ? total : (boughtAt.get(st.until) ?? total);
+    // Too short to measure (under a minute) reads as not reached.
+    if (end - start < 60) return null;
+    return ((earnedBy(end) - earnedBy(start)) / (end - start)) * 60;
+  });
+  return { bot: bot.name, cashAt, purchases, stageIncome, idleShare: idleSteps / steps };
 }
 
 const started = performance.now();
@@ -169,25 +200,23 @@ const perMin = (v: number | null): string => (v === null ? 'n/a' : v.toFixed(1))
 console.log(`Homestead balance simulator: content v${content.contentVersion}, ${minutes} min of play per bot (${elapsed.toFixed(1)} s)`);
 console.log('');
 console.log(
-  'bot'.padEnd(10) +
-    CHECKPOINTS.map((m) => pad(`cash@${m}m`, 10)).join('') +
-    pad('buys', 6) +
-    pad('pre-mill/m', 12) +
-    pad('mill/m', 9) +
-    pad('idle', 7) +
-    pad('Farmhouse', 12),
+  'bot'.padEnd(10) + CHECKPOINTS.map((m) => pad(`cash@${m}m`, 10)).join('') + pad('buys', 6) + pad('idle', 7) + pad('Farmhouse', 12),
 );
 for (const r of results) {
   console.log(
     r.bot.padEnd(10) +
       CHECKPOINTS.map((m) => pad(Math.floor(r.cashAt.get(m) ?? 0), 10)).join('') +
       pad(r.purchases.length, 6) +
-      pad(perMin(r.beforeMachine), 12) +
-      pad(perMin(r.withMachine), 9) +
       pad(`${Math.round(r.idleShare * 100)}%`, 7) +
       pad('n/a', 12),
   );
 }
+console.log('');
+console.log('Income per minute by stage (DESIGN.md target in brackets):');
+targets.stages.forEach((st, k) => {
+  const cells = results.map((r) => `${r.bot} ${perMin(r.stageIncome[k] ?? null)}`).join('   ');
+  console.log(`  ${st.name.padEnd(22)} [${st.cashPerMinute}]   ${cells}`);
+});
 
 let outOfBand = 0;
 for (const r of results) {
@@ -205,11 +234,7 @@ for (const r of results) {
 }
 
 console.log('');
-console.log(
-  `Stage targets (DESIGN.md): about ${targets.stage1HandCashPerMinute} cash/min hand chopping, ` +
-    `${targets.stage2HandCashPerMinute} with a hand-fed Sawmill. "mill/m" is income over the last third of the run.`,
-);
-console.log(`Pacing: ${outOfBand} purchase(s) outside DESIGN.md's bands (Yard buildings 1-3 min, upgrades 2-5 min).`);
+console.log(`Pacing: ${outOfBand} purchase(s) outside DESIGN.md's bands (Yard buildings 1-3 min, gates and other buildings 8-15, upgrades 2-5).`);
 console.log(
   `Farmhouse target: ${targets.farmhouseHours.min}-${targets.farmhouseHours.max} h for the priority bot; not measurable until the Market (phase 6).`,
 );
