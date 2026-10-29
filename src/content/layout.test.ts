@@ -88,6 +88,20 @@ describe('validateLayout', () => {
     expect(validateLayout(layoutFromContent(c))).toContainEqual(expect.stringMatching(/pad yard-sawmill-input cannot be stood on/));
   });
 
+  it('rule 4: flags a pad on the trip from an output pad to the sell pad', () => {
+    const c = parseContent(raw);
+    const plot = c.zones[0]!.plots.find((p) => p.kind === 'building')!;
+    const sell = c.zones[0]!.pads[0]!;
+    if (plot.kind !== 'building') throw new Error('expected a building plot');
+    // A Workbench plot dropped halfway between the Sawmill's output pad and the sell pad.
+    const walk = c.zones[0]!.plots.find((p) => p.kind === 'character')!;
+    walk.x = (plot.site.outputPad.x + sell.x) / 2;
+    walk.z = (plot.site.outputPad.z + sell.z) / 2;
+    expect(validateLayout(layoutFromContent(c))).toContainEqual(
+      expect.stringMatching(new RegExp(`pad ${walk.id} lies on the path from pile yard-sawmill-output to yard-sell`)),
+    );
+  });
+
   it('rule 4: allows a pad beside the path', () => {
     const errors = validateLayout(
       layout({

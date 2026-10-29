@@ -62,7 +62,7 @@ export class PlotsView {
     private readonly content: Content,
   ) {
     const r = content.interaction.padRadius;
-    const dashGeo = dashedRing(r * 0.82, r);
+    const dashGeo = dashedRing(r * PLOTS.dashInner, r);
     const dashMat = new MeshBasicMaterial({ color: COLORS.plotDash, transparent: true, opacity: 0.9 });
     const fillMat = new MeshBasicMaterial({ color: COLORS.padActive });
     const add = (id: string, x: number, z: number): void => {
@@ -70,7 +70,10 @@ export class PlotsView {
       dashes.rotation.x = -Math.PI / 2;
       dashes.position.set(x, 0.015, z);
       // Starts at the top of the screen (local 135 degrees after laying the ring flat).
-      const fill = new Mesh(new RingGeometry(r * 0.5, r * 0.74, PLOTS.fillSegments, 1, (Math.PI * 3) / 4, Math.PI * 2), fillMat);
+      const fill = new Mesh(
+        new RingGeometry(r * PLOTS.fillInner, r * PLOTS.fillOuter, PLOTS.fillSegments, 1, (Math.PI * 3) / 4, Math.PI * 2),
+        fillMat,
+      );
       fill.rotation.x = -Math.PI / 2;
       fill.position.set(x, 0.02, z);
       fill.geometry.setDrawRange(0, 0);
@@ -115,7 +118,8 @@ export class PlotsView {
       this.projected.set(v.x, PLOTS.labelHeight, v.z).project(camera);
       const sx = ((this.projected.x + 1) / 2) * width;
       const sy = ((1 - this.projected.y) / 2) * height;
-      const onScreen = sx > -80 && sx < width + 80 && sy > -80 && sy < height + 80;
+      const m = PLOTS.labelMarginPx;
+      const onScreen = sx > -m && sx < width + m && sy > -m && sy < height + m;
       v.label.style.display = onScreen ? 'flex' : 'none';
       if (onScreen) v.label.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -100%)`;
     }
@@ -145,7 +149,8 @@ export class PlotsView {
       parts.push(`<span class="plot-row"><span class="plot-item" style="background:${color}"></span>${m.have}/${m.need}</span>`);
     }
     // Price greys out until the player can actually start the ring.
-    const ready = materialsDone(price) && s.cash >= price.cash;
+    const locked = s.purchase.locked && s.purchase.pad === pad.id;
+    const ready = !locked && materialsDone(price) && s.cash >= price.cash;
     parts.push(`<span class="plot-row plot-price${ready ? '' : ' cant'}"><span class="plot-coin"></span>${price.cash}</span>`);
     return parts.join('');
   }

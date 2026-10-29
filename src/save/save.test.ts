@@ -62,6 +62,27 @@ describe('round trip', () => {
     expect(t.nodes[0]).toMatchObject({ remaining: 0, regrowLeft: 7 });
   });
 
+  it('keeps plots inert after loading a save taken while standing on one', () => {
+    const plot = c.zones[0]!.plots.find((p) => p.kind === 'character')!;
+    const s = createState(c);
+    s.player.x = plot.x;
+    s.player.z = plot.z;
+    s.cash = 100000;
+    const t = createState(c);
+    applySave(t, toSave(s), c);
+    expect(t.purchase.locked).toBe(true);
+  });
+
+  it('clamps negative cash and play time', () => {
+    const s = createState(c);
+    const data = toSave(s);
+    data.cash = -50;
+    data.playTime = -1;
+    applySave(s, data, c);
+    expect(s.cash).toBe(0);
+    expect(s.time).toBe(0);
+  });
+
   it('drops items and nodes content.json no longer has', () => {
     const s = createState(c);
     const data = toSave(s);

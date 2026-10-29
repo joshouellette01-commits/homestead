@@ -335,8 +335,8 @@ function checkReferences(c: Content): void {
       const path = `zones[${zi}].plots[${pi}]`;
       claimId(p.id, `${path}.id`);
       if (p.kind !== 'building') return;
-      // The built machine's speed plot takes this id.
-      claimId(`${p.id}-speed`, `${path}.id`);
+      // The built machine's pads take these ids.
+      for (const suffix of ['speed', 'input', 'output']) claimId(`${p.id}-${suffix}`, `${path}.id`);
       if (!c.machines[p.machine]) fail(`${path}.machine`, `unknown machine "${p.machine}"`);
       for (const item of Object.keys(p.materials)) {
         if (!c.items[item]) fail(`${path}.materials`, `unknown item "${item}"`);

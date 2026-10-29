@@ -15,7 +15,7 @@ import {
   RingGeometry,
   type Scene,
 } from 'three';
-import type { BuildingPlotContent, Content, Vec2 } from '../content';
+import type { BuildingPlotContent, Content, MachineContent, Vec2 } from '../content';
 import { buildingPlots, cycleSeconds } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import { BUILDINGS, COLORS, ITEM_COLORS, PILE } from './config';
@@ -34,8 +34,15 @@ interface BuildingView {
   opacity: number;
 }
 
+interface MachineMesh {
+  root: Group;
+  /** Spins while the machine runs. */
+  blade: Mesh;
+  materials: MeshLambertMaterial[];
+}
+
 /** The Sawmill: a plank platform, a small shed and a saw bench. Front faces +z. */
-function sawmill(): { root: Group; blade: Mesh; materials: MeshLambertMaterial[] } {
+function sawmill(width: number, depth: number): MachineMesh {
   const materials: MeshLambertMaterial[] = [];
   const mat = (color: number): MeshLambertMaterial => {
     const m = new MeshLambertMaterial({ color, transparent: true });
@@ -49,7 +56,6 @@ function sawmill(): { root: Group; blade: Mesh; materials: MeshLambertMaterial[]
     root.add(m);
     return m;
   };
-  const { width, depth } = BUILDINGS.sawmill;
   box(width, 0.25, depth, COLORS.sawmillBase, 0, 0.125, 0);
   // Shed on the left half.
   box(1.0, 1.1, depth * 0.85, COLORS.sawmillWall, -width / 2 + 0.6, 0.8, -0.05);
@@ -76,6 +82,14 @@ function sawmill(): { root: Group; blade: Mesh; materials: MeshLambertMaterial[]
   return { root, blade, materials };
 }
 
+/** Meshes per machine id; phase 4's machines add theirs here. */
+const MACHINE_MESHES: Record<string, (width: number, depth: number) => MachineMesh> = { sawmill };
+
+function footprint(machine: MachineContent | undefined): { width: number; depth: number } {
+  const r = machine?.radius ?? 1;
+  return { width: r * BUILDINGS.footprint.width, depth: r * BUILDINGS.footprint.depth };
+}
+
 /** Angle that turns a +z-facing building toward a point. */
 const facing = (from: Vec2, to: Vec2): number => Math.atan2(to.x - from.x, to.z - from.z);
 
@@ -97,13 +111,15 @@ export class BuildingsView {
       const machine = content.machines[plot.machine];
       const { site } = plot;
       const front = { x: (site.inputPad.x + site.outputPad.x) / 2, z: (site.inputPad.z + site.outputPad.z) / 2 };
-      const { root, blade, materials } = sawmill();
+      const size = footprint(machine);
+      const build = MACHINE_MESHES[plot.machine] ?? sawmill;
+      const { root, blade, materials } = build(size.width, size.depth);
       root.position.set(site.x, 0, site.z);
       root.rotation.y = facing(site, front);
       scene.add(root);
 
       const ghost = new Mesh(
-        new PlaneGeometry(BUILDINGS.sawmill.width, BUILDINGS.sawmill.depth),
+        new PlaneGeometry(size.width, size.depth),
         new MeshBasicMaterial({ color: COLORS.plotDash, transparent: true, opacity: BUILDINGS.ghostOpacity }),
       );
       ghost.rotation.set(-Math.PI / 2, 0, root.rotation.y);
@@ -127,8 +143,9 @@ export class BuildingsView {
       });
 
       const built = state.buildings[i]?.built ?? false;
-      this.views.push({ plot, root, blade, ghost, materials, pads, built, sinceBuilt: Infinity, opacity: 1 });
-      this.applyBuilt(this.views[this.views.length - 1]!);
+      const view: BuildingView = { plot, root, blade, ghost, materials, pads, built, sinceBuilt: Infinity, opacity: 1 };
+      this.views.push(view);
+      this.applyBuilt(view);
     });
 
     const maxItems = Math.max(1, Object.values(content.machines).reduce((n, m) => n + m.pileCapacity * 2, 0) * this.views.length);
@@ -169,7 +186,7 @@ export class BuildingsView {
       if (v.sinceBuilt < BUILDINGS.popSeconds) {
         v.sinceBuilt += dt;
         const t = Math.min(1, v.sinceBuilt / BUILDINGS.popSeconds);
-        const back = 1.7;
+        const back = BUILDINGS.popOvershoot;
         const k = 1 + (back + 1) * (t - 1) ** 3 + back * (t - 1) ** 2;
         v.root.scale.setScalar(Math.max(0.01, k));
       }

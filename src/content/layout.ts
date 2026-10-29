@@ -12,7 +12,11 @@ export interface LayoutPad {
   z: number;
 }
 
-/** A pile of goods and the pads it is carried to. */
+/**
+ * Where goods are picked up and the pads they are carried to. A source can be
+ * a pad itself (an output pad, carried to a sell pad); its own pad is never
+ * counted as being in the way.
+ */
 export interface LayoutPile {
   id: string;
   x: number;
@@ -104,7 +108,7 @@ export function validateLayout(l: Layout): string[] {
         continue;
       }
       for (const pad of l.pads) {
-        if (pad === target) continue;
+        if (pad === target || pad.id === pile.id) continue;
         const d = distToSegment(pad, pile, target);
         if (d < l.padRadius) errors.push(`pad ${pad.id} lies on the path from pile ${pile.id} to ${target.id}`);
       }
@@ -150,9 +154,15 @@ export function layoutFromContent(c: Content): Layout {
       const output = { id: `${plot.id}-output`, kind: 'output' as const, ...site.outputPad };
       pads.push({ id: plot.id, kind: 'upgradePlot', x: plot.x, z: plot.z }, input, output);
       if (machine) solids.push({ id: plot.id, x: site.x, z: site.z, r: machine.radius });
+      // Trips the player makes: pile to its pad, output pad to each sell pad,
+      // and each node that feeds the machine to its input pad.
       piles.push({ id: `${plot.id}-output-pile`, ...site.outputPile, feeds: [output.id] });
+      piles.push({ id: `${plot.id}-input-pile`, ...site.inputPile, feeds: [input.id] });
+      piles.push({ id: output.id, x: output.x, z: output.z, feeds: sellPads.map((p) => p.id) });
       for (const n of zone.nodes) {
-        if (machine && c.nodeTypes[n.type]?.item === machine.input) walks.push({ from: n, to: input });
+        if (!machine || c.nodeTypes[n.type]?.item !== machine.input) continue;
+        piles.push({ id: n.id, x: n.x, z: n.z, feeds: [input.id] });
+        walks.push({ from: n, to: input });
       }
       for (const sell of sellPads) walks.push({ from: output, to: sell });
     }

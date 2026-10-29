@@ -1,7 +1,7 @@
 // Moves game state in and out of localStorage. Never wipes a save on its own:
 // a save that fails to load is reported as corrupt and left untouched.
 import { TRACK_IDS, type Content } from '../content';
-import { buildingPlots, machineOf, maxLevel, playerStats } from '../sim/plots';
+import { buildingPlots, machineOf, maxLevel, padUnderPlayer, playerStats } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import { SaveTooNewError, migrate } from './migrate';
 import { SAVE_KEY, SAVE_VERSION, type SaveData } from './schema';
@@ -78,8 +78,8 @@ export function toSave(s: SimState, settings: Record<string, unknown> = {}): Sav
 /** Apply a save onto a fresh state, ignoring anything content.json no longer has. */
 export function applySave(s: SimState, data: SaveData, c: Content): void {
   const whole = (v: number, max: number): number => Math.max(0, Math.min(max, Math.round(v)));
-  s.cash = data.cash;
-  s.time = data.playTime;
+  s.cash = Math.max(0, data.cash);
+  s.time = Math.max(0, data.playTime);
   for (const track of TRACK_IDS) s.levels[track] = whole(data.levels[track] ?? 0, maxLevel(c, track));
   s.player.x = data.player.x;
   s.player.z = data.player.z;
@@ -97,6 +97,9 @@ export function applySave(s: SimState, data: SaveData, c: Content): void {
     b.input = whole(saved.input, m.machine.pileCapacity);
     b.output = whole(saved.output, m.machine.pileCapacity);
   });
+  // A save taken just after a purchase may have the player still on that
+  // plot; keep plots inert until they step off, as before the reload.
+  s.purchase.locked = padUnderPlayer(s, c) !== null;
   for (const n of s.nodes) {
     const saved = data.nodes[n.id];
     const type = c.nodeTypes[n.type];

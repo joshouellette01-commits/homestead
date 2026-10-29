@@ -40,7 +40,7 @@ interface Circle {
   r: number;
 }
 
-/** Zones the player can walk in. Gates arrive in phase 3; until then, free zones only. */
+/** Zones the player can walk in. Gates arrive in phase 4; until then, free zones only. */
 export function ownedZoneBounds(c: Content): Bounds[] {
   return c.zones.filter((z) => z.gateCost === 0).map((z) => z.bounds);
 }

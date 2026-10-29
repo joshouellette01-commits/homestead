@@ -60,16 +60,25 @@ export const PLOTS = {
   dashes: 14,
   /** Fraction of each dash slot that is drawn. */
   dashFill: 0.6,
+  /** Ring radii as fractions of the pad radius. */
+  dashInner: 0.82,
+  fillInner: 0.5,
+  fillOuter: 0.74,
   fillSegments: 48,
+  /** Labels this far off screen still render, so they slide in rather than pop. */
+  labelMarginPx: 80,
   /** Height above the ground where the price label floats: over the farmer's head. */
   labelHeight: 2.3,
 } as const;
 
 /** Primitive building sizes and their build and fade animation. */
 export const BUILDINGS = {
-  sawmill: { width: 2.4, depth: 1.8 },
+  /** Footprint as multiples of the machine's collision radius; 1.6 x 1.2 puts the corners on the circle. */
+  footprint: { width: 1.6, depth: 1.2 },
   ghostOpacity: 0.3,
   popSeconds: 0.35,
+  /** Overshoot of the pop-in (ease-out-back). */
+  popOvershoot: 1.7,
   bladeTurnsPerCycle: 2,
   /** A building fades when the farmer is within this much of it sideways on screen, */
   fadeMargin: 0.6,
