@@ -110,7 +110,9 @@ export class PlotsView {
         continue;
       }
       const ring = s.purchase.pad === v.id ? s.purchase.progress / this.content.interaction.purchaseSeconds : 0;
-      v.fill.geometry.setDrawRange(0, Math.round(Math.min(1, ring) * PLOTS.fillSegments) * 6);
+      const segments = Math.round(Math.min(1, ring) * PLOTS.fillSegments);
+      v.fill.geometry.setDrawRange(0, segments * 6);
+      v.fill.visible = segments > 0;
 
       const html = pad ? this.labelHtml(s, pad) : '<span class="plot-max">MAX</span>';
       if (html !== v.lastLabel) {

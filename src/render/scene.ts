@@ -14,15 +14,18 @@ import type { Content } from '../content';
 import { buildingPlots, playerStats } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import type { SimEvent } from '../sim/tick';
+import { AnimalsView } from './animals';
 import { BuildingsView } from './buildings';
 import { IsoCamera } from './camera';
 import { COLORS, LIGHTING, RENDER } from './config';
+import { CropsView } from './crops';
 import { FarmerView } from './farmer';
 import { FlightsView } from './flights';
 import type { Models } from './models';
 import { PlotsView } from './plots';
 import { PropsView } from './props';
 import { TreesView } from './trees';
+import { ZonesView } from './zones';
 
 /** Player position at the previous and current sim step, for interpolation. */
 export interface PlayerFrame {
@@ -42,6 +45,9 @@ export class World {
   private readonly plots: PlotsView;
   private readonly buildings: BuildingsView;
   private readonly flights: FlightsView;
+  private readonly crops: CropsView;
+  private readonly zones: ZonesView;
+  private readonly animals: AnimalsView;
   /** Pad id to the building it belongs to and which of its pads it is. */
   private readonly buildingPads = new Map<string, { building: number; kind: 'input' | 'output' | 'build'; item?: string }>();
   private readonly from = new Vector3();
@@ -81,8 +87,12 @@ export class World {
     this.scene.add(ground);
 
     this.trees = new TreesView(this.scene, state.nodes, content, models);
+    this.crops = new CropsView(this.scene, state.nodes, content, models);
+    this.zones = new ZonesView(this.scene, content, models);
     this.props = new PropsView(this.scene, content);
     this.buildings = new BuildingsView(this.scene, content, state, models);
+    this.animals = new AnimalsView(this.scene, content);
+    buildingPlots(content).forEach((_, i) => this.animals.setFacing(i, this.buildings.yawOf(i)));
     // Plot prices float over the world, under the HUD.
     const labels = document.createElement('div');
     labels.className = 'world-labels';
@@ -126,7 +136,10 @@ export class World {
     const stackLen = state.player.stack.length;
     let leaving = 0;
     for (const e of events) {
-      if (e.type === 'harvest') this.trees.hit(e.node);
+      if (e.type === 'harvest') {
+        this.trees.hit(e.node);
+        this.crops.hit(e.node);
+      }
       if (e.type === 'sell' || e.type === 'deliver') {
         // The item left the top of the stack: fly it from where it sat.
         this.farmer.stackSlotWorld(stackLen - this.farmer.incoming + leaving, this.from);
@@ -189,6 +202,9 @@ export class World {
       dt,
     );
     this.trees.update(state.nodes, dt);
+    this.crops.update(state.nodes, dt);
+    this.zones.update(state);
+    this.animals.update(state, dt);
     this.props.update(p.x, p.z, !moving);
     this.buildings.update(state, x, z, this.iso.yawRad, dt);
     this.flights.update(dt);

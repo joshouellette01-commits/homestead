@@ -9,6 +9,7 @@ import {
 } from 'three';
 import type { Content } from '../content';
 import { COLORS } from './config';
+import { mergeByColor } from './machines';
 
 interface PadView {
   x: number;
@@ -32,6 +33,7 @@ function sellTable(): Group {
     leg.position.set(x, 0.35, z);
     g.add(leg);
   }
+  mergeByColor(g);
   g.traverse((o) => {
     o.castShadow = true;
     o.receiveShadow = true;
@@ -67,6 +69,7 @@ function workbench(): Group {
   head.position.set(0.31, 0.92, 0.25);
   head.rotation.y = -0.4;
   g.add(saw, handle, head);
+  mergeByColor(g);
   g.traverse((o) => {
     o.castShadow = true;
     o.receiveShadow = true;

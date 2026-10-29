@@ -3,7 +3,6 @@
 // beside them. Buildings between the camera and the farmer fade.
 import {
   BoxGeometry,
-  CylinderGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -19,14 +18,17 @@ import { buildingPlots, cycleSeconds, inputSource, machineInputs } from '../sim/
 import type { SimState } from '../sim/state';
 import { BUILDINGS, COLORS, ITEM_COLORS, PILE } from './config';
 import { ItemInstances } from './items';
+import { MACHINE_MESHES, fallbackMesh, type MachineMesh } from './machines';
 import type { Models } from './models';
 
 interface BuildingView {
   plot: BuildingPlotContent;
   root: Group;
-  /** Spins while the machine is running. */
-  blade: Mesh;
+  /** Spins while the machine is running, if anything does. */
+  spinner: MachineMesh['spinner'];
   ghost: Mesh;
+  /** Extra pieces that appear with the building, like a trough. */
+  troughs: Mesh[];
   materials: MeshLambertMaterial[];
   pads: Array<{ x: number; z: number; material: MeshLambertMaterial; ring: Mesh; icon: Mesh }>;
   built: boolean;
@@ -39,57 +41,6 @@ interface BuildingView {
 
 /** One of a building's piles: an input pile by item, or its output pile. */
 export type PileRef = 'output' | { input: string };
-
-interface MachineMesh {
-  root: Group;
-  /** Spins while the machine runs. */
-  blade: Mesh;
-  materials: MeshLambertMaterial[];
-}
-
-/** The Sawmill: a plank platform, a small shed and a saw bench. Front faces +z. */
-function sawmill(width: number, depth: number): MachineMesh {
-  const materials: MeshLambertMaterial[] = [];
-  const mat = (color: number): MeshLambertMaterial => {
-    const m = new MeshLambertMaterial({ color, transparent: true });
-    materials.push(m);
-    return m;
-  };
-  const root = new Group();
-  const box = (w: number, h: number, d: number, color: number, x: number, y: number, z: number): Mesh => {
-    const m = new Mesh(new BoxGeometry(w, h, d), mat(color));
-    m.position.set(x, y, z);
-    root.add(m);
-    return m;
-  };
-  box(width, 0.25, depth, COLORS.sawmillBase, 0, 0.125, 0);
-  // Shed on the left half.
-  box(1.0, 1.1, depth * 0.85, COLORS.sawmillWall, -width / 2 + 0.6, 0.8, -0.05);
-  const roof = new Mesh(new CylinderGeometry(0.75, 0.75, depth * 0.95, 3), mat(COLORS.sawmillRoof));
-  roof.rotation.x = Math.PI / 2;
-  roof.rotation.z = Math.PI / 2;
-  roof.scale.set(0.8, 1, 1);
-  roof.position.set(-width / 2 + 0.6, 1.55, -0.05);
-  root.add(roof);
-  // Saw bench on the right half, with a log on it and the blade through it.
-  box(1.1, 0.5, 0.7, COLORS.sawmillWall, width / 2 - 0.65, 0.5, 0.1);
-  const log = new Mesh(new CylinderGeometry(0.13, 0.13, 0.9, 8), mat(ITEM_COLORS.log ?? COLORS.unknownItem));
-  log.rotation.z = Math.PI / 2;
-  log.position.set(width / 2 - 0.65, 0.88, 0.25);
-  root.add(log);
-  const blade = new Mesh(new CylinderGeometry(0.32, 0.32, 0.03, 16), mat(COLORS.tool));
-  blade.rotation.x = Math.PI / 2;
-  blade.position.set(width / 2 - 0.65, 0.85, -0.05);
-  root.add(blade);
-  root.traverse((o) => {
-    o.castShadow = true;
-    o.receiveShadow = true;
-  });
-  return { root, blade, materials };
-}
-
-/** Meshes per machine id; phase 4's machines add theirs here. */
-const MACHINE_MESHES: Record<string, (width: number, depth: number) => MachineMesh> = { sawmill };
 
 function footprint(machine: MachineContent | undefined): { width: number; depth: number } {
   const r = machine?.radius ?? 1;
@@ -123,8 +74,8 @@ export class BuildingsView {
         z: ownPads.reduce((sum, p) => sum + p.z, 0) / ownPads.length,
       };
       const size = footprint(machine);
-      const build = MACHINE_MESHES[plot.machine] ?? sawmill;
-      const { root, blade, materials } = build(size.width, size.depth);
+      const build = MACHINE_MESHES[plot.machine] ?? fallbackMesh;
+      const { root, spinner, materials } = build(size.width, size.depth);
       root.position.set(site.x, 0, site.z);
       root.rotation.y = facing(site, front);
       scene.add(root);
@@ -136,6 +87,21 @@ export class BuildingsView {
       ghost.rotation.set(-Math.PI / 2, 0, root.rotation.y);
       ghost.position.set(site.x, 0.012, site.z);
       scene.add(ghost);
+
+      // Animals eat from a trough: a low wooden box under the feed pile.
+      const troughs: Mesh[] = [];
+      if (machine?.kind === 'animals') {
+        const where = site.inputs[machine.feed];
+        if (where && 'pile' in where) {
+          const trough = new Mesh(new BoxGeometry(PILE.length * 1.3, BUILDINGS.troughHeight, PILE.depth * 4.2), new MeshLambertMaterial({ color: COLORS.sawmillBase, transparent: true }));
+          trough.position.set(where.pile.x, BUILDINGS.troughHeight / 2, where.pile.z);
+          trough.rotation.y = root.rotation.y;
+          trough.castShadow = true;
+          trough.receiveShadow = true;
+          root.parent?.add(trough);
+          troughs.push(trough);
+        }
+      }
 
       const pads: BuildingView['pads'] = [];
       const padItems: Array<{ at: Vec2; item: string }> = Object.entries(site.inputs).flatMap(([item, w]) =>
@@ -160,8 +126,9 @@ export class BuildingsView {
       const view: BuildingView = {
         plot,
         root,
-        blade,
+        spinner,
         ghost,
+        troughs,
         materials,
         pads,
         built,
@@ -180,6 +147,7 @@ export class BuildingsView {
   private applyBuilt(v: BuildingView): void {
     v.root.visible = v.built;
     v.ghost.visible = !v.built;
+    for (const t of v.troughs) t.visible = v.built;
     for (const p of v.pads) {
       p.ring.visible = v.built;
       p.icon.visible = v.built;
@@ -214,7 +182,7 @@ export class BuildingsView {
       if (!b.built) return;
 
       const running = b.output < machine.pileCapacity && machineInputs(machine).every((item) => (inputSource(s, this.content, i, item)?.count ?? 0) > 0);
-      if (running) v.blade.rotation.y += dt * (BUILDINGS.bladeTurnsPerCycle * Math.PI * 2) / cycleSeconds(this.content, machine, b.level);
+      if (running && v.spinner) v.spinner.rotation.y += dt * (BUILDINGS.bladeTurnsPerCycle * Math.PI * 2) / cycleSeconds(this.content, machine, b.level);
 
       for (const p of v.pads) {
         const on = Math.hypot(playerX - p.x, playerZ - p.z) <= r;
@@ -224,7 +192,8 @@ export class BuildingsView {
       // Fade when the building stands between the camera and the farmer.
       const du = (v.plot.site.x - playerX) * right.x + (v.plot.site.z - playerZ) * right.z;
       const dv = (v.plot.site.x - playerX) * down.x + (v.plot.site.z - playerZ) * down.z;
-      const covers = Math.abs(du) < machine.radius + BUILDINGS.fadeMargin && dv > -machine.radius && dv < machine.radius + BUILDINGS.fadeReach;
+      // dv > 0: the building is nearer the camera than the farmer.
+      const covers = Math.abs(du) < machine.radius + BUILDINGS.fadeMargin && dv > 0 && dv < machine.radius + BUILDINGS.fadeReach;
       const target = covers ? this.content.camera.buildingFadeOpacity : 1;
       v.opacity += (target - v.opacity) * Math.min(1, dt * BUILDINGS.fadeSpeed);
       for (const m of v.materials) m.opacity = v.opacity;
@@ -260,6 +229,11 @@ export class BuildingsView {
     const v = this.views[building];
     if (!v) return 0;
     return this.pileSlot(this.pileAt(v, which), k, v.root.rotation.y, out);
+  }
+
+  /** Which way a building faces. */
+  yawOf(building: number): number {
+    return this.views[building]?.root.rotation.y ?? 0;
   }
 
   /** Counts an item flying into a pile; returns the call that lands it. */

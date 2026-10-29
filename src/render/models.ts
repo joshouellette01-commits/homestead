@@ -8,6 +8,11 @@ export const MODEL_FILES = {
   pine: 'tree_pineRoundA.glb',
   stump: 'stump_round.glb',
   log: 'log.glb',
+  fence: 'fence_simple.glb',
+  gate: 'fence_gate.glb',
+  wheat: 'crops_wheatStageB.glb',
+  sprout: 'crops_wheatStageA.glb',
+  dirt: 'crops_dirtSingle.glb',
 } as const;
 
 export type ModelId = keyof typeof MODEL_FILES;
@@ -41,8 +46,9 @@ async function load(loader: GLTFLoader, url: string): Promise<Model> {
     p.geometry.computeBoundingBox();
     if (p.geometry.boundingBox) box.union(p.geometry.boundingBox);
   }
-  // Sit the model on the ground.
-  const lift = new Matrix4().makeTranslation(0, -box.min.y, 0);
+  // Sit the model on the ground, centred on the origin (Kenney fences sit on a tile edge).
+  const center = box.getCenter(new Vector3());
+  const lift = new Matrix4().makeTranslation(-center.x, -box.min.y, -center.z);
   for (const p of parts) p.geometry.applyMatrix4(lift);
   return { parts, size: box.getSize(new Vector3()) };
 }
@@ -54,7 +60,7 @@ export async function loadModels(baseUrl: string): Promise<Models> {
   );
   const models: Partial<Models> = {};
   for (const [id, model] of entries) models[id] = model;
-  const { pine, stump, log } = models;
-  if (!pine || !stump || !log) throw new Error('a model failed to load');
-  return { pine, stump, log };
+  const { pine, stump, log, fence, gate, wheat, sprout, dirt } = models;
+  if (!pine || !stump || !log || !fence || !gate || !wheat || !sprout || !dirt) throw new Error('a model failed to load');
+  return { pine, stump, log, fence, gate, wheat, sprout, dirt };
 }

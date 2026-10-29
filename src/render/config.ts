@@ -41,6 +41,20 @@ export const COLORS = {
   sawmillRoof: 0x8c3b2e,
   workbenchTop: 0xb98552,
   workbenchLeg: 0x7a5434,
+  millStone: 0xb8b2a6,
+  millRoof: 0x6e4a32,
+  millSail: 0xf2ece0,
+  bakeryWall: 0xe8d2b0,
+  bakeryRoof: 0x8c3b2e,
+  ovenGlow: 0xff9a3c,
+  coopWall: 0xc9a06a,
+  patisserieWall: 0xf3c4cf,
+  awningA: 0xe8577a,
+  awningB: 0xfff4f6,
+  henBody: 0xfaf6ee,
+  henBeak: 0xf2a33a,
+  henComb: 0xd8352a,
+  lockedZone: 0x8090a0,
   farmerShirt: 0x3f6fb5,
   farmerPants: 0x40404a,
   farmerSkin: 0xf0c8a0,
@@ -55,7 +69,40 @@ export const COLORS = {
 export const ITEM_COLORS: Record<string, number> = {
   log: 0x8b5a2b,
   plank: 0xe0b878,
+  wheat: 0xe3c35a,
+  flour: 0xf4f1ea,
+  bread: 0xb87333,
+  egg: 0xf3e6cf,
+  cake: 0xf08aa6,
 };
+
+/** Items drawn as an egg shape rather than a board. */
+export const EGG_ITEMS: ReadonlySet<string> = new Set(['egg']);
+
+/** Zone fences: one fence model per segment units of edge. */
+export const FENCES = { segment: 1, height: 2, gateWidth: 2.4, lockedTint: 0.18 } as const;
+
+/** Wheat and its regrowth. */
+export const CROPS = { scale: 2.2, dirtScale: 2.4, lift: 0.08, sproutMin: 0.3 } as const;
+
+/** Our colours for the crop models' materials. */
+export const CROP_COLORS: Record<string, number> = {
+  woodInner: 0xc8a24a,
+  _defaultMat: 0xe8c66a,
+  grass: 0x7fae4e,
+};
+
+/** Hens: pen size as a share of the building radius, and how they wander. */
+export const HENS = {
+  penWidth: 0.55,
+  penDepth: 0.45,
+  frontOffset: -0.05,
+  speed: 0.6,
+  waitMin: 0.8,
+  waitSpread: 2.2,
+  peckSpeed: 9,
+  peckAngle: 0.9,
+} as const;
 
 /** Our colours for the Kenney models' materials, by material name. */
 export const MODEL_COLORS: Record<string, number> = {
@@ -63,6 +110,11 @@ export const MODEL_COLORS: Record<string, number> = {
   woodBarkDark: COLORS.trunk,
   woodBark: COLORS.logBark,
   woodInner: COLORS.logInner,
+  wood: 0xa57c55,
+  woodDark: 0x7a5434,
+  stone: 0xa9b2b8,
+  dirt: 0x8a6646,
+  dirtDark: 0x6b4c33,
 };
 
 /** Size of the glTF pine relative to the model file, and where the snow cap sits on it. */
@@ -99,6 +151,7 @@ export const BUILDINGS = {
   footprint: { width: 1.6, depth: 1.2 },
   ghostOpacity: 0.3,
   popSeconds: 0.35,
+  troughHeight: 0.22,
   /** Overshoot of the pop-in (ease-out-back). */
   popOvershoot: 1.7,
   bladeTurnsPerCycle: 2,

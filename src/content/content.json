@@ -108,7 +108,7 @@
       ],
       "props": [
         {"id": "yard-sell-table", "kind": "sellTable", "x": 3.8, "z": 0.7, "radius": 0.5},
-        {"id": "yard-workbench", "kind": "workbench", "x": 0.64, "z": -8.41, "radius": 0.9}
+        {"id": "yard-workbench", "kind": "workbench", "x": 0.42, "z": -10.32, "radius": 0.9}
       ],
       "pads": [{"id": "yard-sell", "kind": "sell", "x": 3, "z": 1.5}],
       "plots": [
@@ -128,9 +128,9 @@
             "outputPile": {"x": 5.87, "z": 3.89}
           }
         },
-        {"id": "yard-capacity", "kind": "character", "track": "capacity", "x": 1.27, "z": -4.67},
-        {"id": "yard-walkSpeed", "kind": "character", "track": "walkSpeed", "x": -0.92, "z": -6.86},
-        {"id": "yard-swingSeconds", "kind": "character", "track": "swingSeconds", "x": -3.11, "z": -9.05},
+        {"id": "yard-capacity", "kind": "character", "track": "capacity", "x": 0.0, "z": -6.36},
+        {"id": "yard-walkSpeed", "kind": "character", "track": "walkSpeed", "x": 2.19, "z": -8.56},
+        {"id": "yard-swingSeconds", "kind": "character", "track": "swingSeconds", "x": 4.38, "z": -10.75},
         {"id": "yard-field-gate", "kind": "gate", "zone": "field", "x": -7.78, "z": -9.9}
       ]
     },

@@ -86,7 +86,7 @@ const CSS = `
 `;
 
 /** Cash granted per tap of the debug "+cash" button, to test purchases quickly. Debug only. */
-const DEBUG_CASH = 100;
+const DEBUG_CASH = 500;
 
 export function createDebugOverlay(root: HTMLElement, content: Content, world: World, state: SimState): (dt: number) => void {
   const style = document.createElement('style');

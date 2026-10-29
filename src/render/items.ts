@@ -1,17 +1,19 @@
 // Draws carried and piled items as instanced meshes. Logs use the Kenney log
-// model; every other item is a coloured board until it gets a model of its own.
+// model, eggs are egg-shaped, and every other item is a coloured board until
+// it gets a model of its own.
 // Callers place items in a unit box (1 x 1 x 1, long side along x) and scale
 // the matrix to the size they want.
 import {
   BoxGeometry,
   Color,
+  SphereGeometry,
   InstancedMesh,
   Matrix4,
   MeshLambertMaterial,
   type BufferGeometry,
   type Scene,
 } from 'three';
-import { COLORS, ITEM_COLORS, MODEL_COLORS } from './config';
+import { COLORS, EGG_ITEMS, ITEM_COLORS, MODEL_COLORS } from './config';
 import type { Model } from './models';
 
 /** Fits a model into the unit box, long side along x, centred on the origin. */
@@ -32,17 +34,24 @@ function unitGeometries(model: Model): Array<{ geometry: BufferGeometry; materia
 
 export class ItemInstances {
   private readonly boards: InstancedMesh;
+  private readonly eggs: InstancedMesh;
   private readonly logs: InstancedMesh[];
   private readonly color = new Color();
+  private readonly eggMatrix = new Matrix4();
   private boardCount = 0;
+  private eggCount = 0;
   private logCount = 0;
 
   constructor(scene: Scene, log: Model, private readonly max: number) {
     this.boards = new InstancedMesh(new BoxGeometry(1, 1, 1), new MeshLambertMaterial(), max);
+    // An egg fills the middle of the item's box: round across, a little taller than wide.
+    const egg = new SphereGeometry(0.5, 10, 8);
+    egg.scale(0.45, 1, 1.2);
+    this.eggs = new InstancedMesh(egg, new MeshLambertMaterial({ color: ITEM_COLORS.egg ?? COLORS.unknownItem }), max);
     this.logs = unitGeometries(log).map(
       (p) => new InstancedMesh(p.geometry, new MeshLambertMaterial({ color: MODEL_COLORS[p.material] ?? COLORS.unknownItem }), max),
     );
-    for (const m of [this.boards, ...this.logs]) {
+    for (const m of [this.boards, this.eggs, ...this.logs]) {
       m.castShadow = true;
       m.receiveShadow = true;
       m.count = 0;
@@ -52,6 +61,7 @@ export class ItemInstances {
 
   begin(): void {
     this.boardCount = 0;
+    this.eggCount = 0;
     this.logCount = 0;
   }
 
@@ -61,6 +71,12 @@ export class ItemInstances {
       if (this.logCount >= this.max) return false;
       for (const m of this.logs) m.setMatrixAt(this.logCount, matrix);
       this.logCount++;
+      return true;
+    }
+    if (EGG_ITEMS.has(item)) {
+      if (this.eggCount >= this.max) return false;
+      this.eggs.setMatrixAt(this.eggCount, this.eggMatrix.copy(matrix));
+      this.eggCount++;
       return true;
     }
     if (this.boardCount >= this.max) return false;
@@ -73,8 +89,11 @@ export class ItemInstances {
   end(): void {
     this.boards.count = this.boardCount;
     if (this.boards.instanceColor) this.boards.instanceColor.needsUpdate = true;
+    this.eggs.count = this.eggCount;
     for (const m of this.logs) m.count = this.logCount;
-    for (const m of [this.boards, ...this.logs]) {
+    for (const m of [this.boards, this.eggs, ...this.logs]) {
+      // Nothing to draw costs nothing: skip the draw call entirely.
+      m.visible = m.count > 0;
       m.instanceMatrix.needsUpdate = true;
       // three.js computes instanced bounds once and culls by them; items move
       // and piles grow, so recompute or new items can vanish off "screen".
