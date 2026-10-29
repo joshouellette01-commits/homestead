@@ -3,10 +3,8 @@
 // beside them. Buildings between the camera and the farmer fade.
 import {
   BoxGeometry,
-  Color,
   CylinderGeometry,
   Group,
-  InstancedMesh,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
@@ -19,6 +17,8 @@ import type { BuildingPlotContent, Content, MachineContent, Vec2 } from '../cont
 import { buildingPlots, cycleSeconds } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import { BUILDINGS, COLORS, ITEM_COLORS, PILE } from './config';
+import { ItemInstances } from './items';
+import type { Models } from './models';
 
 interface BuildingView {
   plot: BuildingPlotContent;
@@ -95,14 +95,14 @@ const facing = (from: Vec2, to: Vec2): number => Math.atan2(to.x - from.x, to.z 
 
 export class BuildingsView {
   private readonly views: BuildingView[] = [];
-  private readonly pileMesh: InstancedMesh;
+  private readonly pileItems: ItemInstances;
   private readonly dummy = new Object3D();
-  private readonly color = new Color();
 
   constructor(
     scene: Scene,
     private readonly content: Content,
     state: SimState,
+    models: Models,
   ) {
     const r = content.interaction.padRadius;
     const padGeo = new RingGeometry(r * 0.78, r, 32);
@@ -149,11 +149,7 @@ export class BuildingsView {
     });
 
     const maxItems = Math.max(1, Object.values(content.machines).reduce((n, m) => n + m.pileCapacity * 2, 0) * this.views.length);
-    this.pileMesh = new InstancedMesh(new BoxGeometry(PILE.length, PILE.height, PILE.depth), new MeshLambertMaterial(), maxItems);
-    this.pileMesh.castShadow = true;
-    this.pileMesh.receiveShadow = true;
-    this.pileMesh.count = 0;
-    scene.add(this.pileMesh);
+    this.pileItems = new ItemInstances(scene, models.log, maxItems);
   }
 
   private applyBuilt(v: BuildingView): void {
@@ -171,7 +167,7 @@ export class BuildingsView {
     // Screen axes on the ground: right, and down (toward the camera).
     const right = { x: Math.cos(yawRad), z: -Math.sin(yawRad) };
     const down = { x: Math.sin(yawRad), z: Math.cos(yawRad) };
-    let pileCount = 0;
+    this.pileItems.begin();
 
     this.views.forEach((v, i) => {
       const b = s.buildings[i];
@@ -208,22 +204,17 @@ export class BuildingsView {
       v.opacity += (target - v.opacity) * Math.min(1, dt * BUILDINGS.fadeSpeed);
       for (const m of v.materials) m.opacity = v.opacity;
 
-      pileCount = this.writePile(pileCount, v.plot.site.inputPile, machine.input, b.input, v.root.rotation.y);
-      pileCount = this.writePile(pileCount, v.plot.site.outputPile, machine.output, b.output, v.root.rotation.y);
+      this.writePile(v.plot.site.inputPile, machine.input, b.input, v.root.rotation.y);
+      this.writePile(v.plot.site.outputPile, machine.output, b.output, v.root.rotation.y);
     });
-
-    this.pileMesh.count = pileCount;
-    this.pileMesh.instanceMatrix.needsUpdate = true;
-    if (this.pileMesh.instanceColor) this.pileMesh.instanceColor.needsUpdate = true;
+    this.pileItems.end();
   }
 
   /** Stacks a pile PILE.perLayer side by side, each layer crossing the one below, like a woodpile. */
-  private writePile(start: number, at: Vec2, item: string, count: number, angle: number): number {
+  private writePile(at: Vec2, item: string, count: number, angle: number): void {
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    const color = this.color.setHex(ITEM_COLORS[item] ?? COLORS.unknownItem);
-    let n = start;
-    for (let k = 0; k < count && n < this.pileMesh.instanceMatrix.count; k++, n++) {
+    for (let k = 0; k < count; k++) {
       const layer = Math.floor(k / PILE.perLayer);
       const cross = layer % 2 === 1;
       const offset = ((k % PILE.perLayer) - (PILE.perLayer - 1) / 2) * PILE.depth * 1.1;
@@ -232,10 +223,9 @@ export class BuildingsView {
       const lz = cross ? 0 : offset;
       this.dummy.position.set(at.x + lx * cos + lz * sin, PILE.height * (layer + 0.5), at.z - lx * sin + lz * cos);
       this.dummy.rotation.set(0, angle + (cross ? Math.PI / 2 : 0), 0);
+      this.dummy.scale.set(PILE.length, PILE.height, PILE.depth);
       this.dummy.updateMatrix();
-      this.pileMesh.setMatrixAt(n, this.dummy.matrix);
-      this.pileMesh.setColorAt(n, color);
+      if (!this.pileItems.add(item, this.dummy.matrix)) return;
     }
-    return n;
   }
 }

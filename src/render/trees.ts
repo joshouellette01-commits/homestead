@@ -1,60 +1,63 @@
-// All trees drawn as three instanced meshes (trunk, foliage, snow cap).
+// All trees as instanced meshes: the Kenney pine (one mesh per material), our
+// snow cap on top, and the Kenney stump with a sapling while a tree regrows.
 import {
   ConeGeometry,
-  CylinderGeometry,
   InstancedMesh,
   Matrix4,
   MeshLambertMaterial,
   Object3D,
   type Scene,
 } from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Content } from '../content';
 import type { NodeState } from '../sim/state';
-import { COLORS } from './config';
+import { COLORS, MODEL_COLORS, TREES } from './config';
+import type { Model, Models } from './models';
 
-const TRUNK_HEIGHT = 0.9;
-const STUMP_HEIGHT = 0.25;
+function instanced(scene: Scene, model: Model, count: number): InstancedMesh[] {
+  return model.parts.map((p) => {
+    const m = new InstancedMesh(p.geometry, new MeshLambertMaterial({ color: MODEL_COLORS[p.material] ?? COLORS.unknownItem }), count);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    scene.add(m);
+    return m;
+  });
+}
 
 export class TreesView {
-  private readonly trunk: InstancedMesh;
-  private readonly foliage: InstancedMesh;
+  private readonly pine: InstancedMesh[];
+  private readonly stump: InstancedMesh[];
   private readonly snow: InstancedMesh;
+  private readonly pineHeight: number;
   private readonly indices: number[] = [];
   private readonly shake: number[] = [];
   private readonly dummy = new Object3D();
   private readonly hidden = new Matrix4().makeScale(0, 0, 0);
 
-  constructor(scene: Scene, nodes: readonly NodeState[], private readonly content: Content) {
+  constructor(scene: Scene, nodes: readonly NodeState[], private readonly content: Content, models: Models) {
     nodes.forEach((n, i) => {
       if (n.type === 'tree') this.indices.push(i);
     });
     const count = Math.max(1, this.indices.length);
 
-    const trunkGeo = new CylinderGeometry(0.14, 0.2, 1, 6);
-    trunkGeo.translate(0, 0.5, 0);
-    const lower = new ConeGeometry(0.85, 1.3, 7);
-    lower.translate(0, 0.65, 0);
-    const upper = new ConeGeometry(0.6, 1.0, 7);
-    upper.translate(0, 1.35, 0);
-    const foliageGeo = mergeGeometries([lower, upper]);
-    const snowGeo = new ConeGeometry(0.32, 0.45, 7);
-    snowGeo.translate(0, 1.66, 0);
-
-    this.trunk = new InstancedMesh(trunkGeo, new MeshLambertMaterial({ color: COLORS.trunk }), count);
-    this.foliage = new InstancedMesh(foliageGeo, new MeshLambertMaterial({ color: COLORS.pine }), count);
+    this.pine = instanced(scene, models.pine, count);
+    this.stump = instanced(scene, models.stump, count);
+    this.pineHeight = models.pine.size.y;
+    // A snow cap on the very top, sized for the unscaled model.
+    const snowGeo = new ConeGeometry(TREES.snowCapRadius / TREES.scale, TREES.snowCapHeight / TREES.scale, 7);
+    snowGeo.translate(0, this.pineHeight - TREES.snowCapHeight / TREES.scale / 2 + 0.01, 0);
     this.snow = new InstancedMesh(snowGeo, new MeshLambertMaterial({ color: COLORS.pineSnow }), count);
-    for (const m of [this.trunk, this.foliage, this.snow]) {
-      m.castShadow = true;
-      m.receiveShadow = true;
-      scene.add(m);
-    }
+    this.snow.castShadow = true;
+    scene.add(this.snow);
     this.shake = this.indices.map(() => 0);
   }
 
   hit(nodeIndex: number): void {
     const slot = this.indices.indexOf(nodeIndex);
     if (slot >= 0) this.shake[slot] = this.content.feel.treeShakeSeconds;
+  }
+
+  private set(meshes: InstancedMesh[], slot: number, matrix: Matrix4): void {
+    for (const m of meshes) m.setMatrixAt(slot, matrix);
   }
 
   update(nodes: readonly NodeState[], dt: number): void {
@@ -72,30 +75,24 @@ export class TreesView {
       d.rotation.set(tilt, 0, tilt * 0.6);
 
       if (n.remaining > 0) {
-        d.scale.set(1, TRUNK_HEIGHT, 1);
+        d.scale.setScalar(TREES.scale);
         d.updateMatrix();
-        this.trunk.setMatrixAt(slot, d.matrix);
-        d.position.y = TRUNK_HEIGHT * 0.55;
-        d.scale.set(1, 1, 1);
-        d.updateMatrix();
-        this.foliage.setMatrixAt(slot, d.matrix);
+        this.set(this.pine, slot, d.matrix);
         this.snow.setMatrixAt(slot, d.matrix);
+        this.set(this.stump, slot, this.hidden);
       } else {
-        // Depleted: a stump with a sapling growing back over regrowSeconds.
-        d.scale.set(1, STUMP_HEIGHT, 1);
+        // Depleted: a stump, with a sapling beside it growing back over regrowSeconds.
+        d.scale.setScalar(TREES.stumpScale);
         d.updateMatrix();
-        this.trunk.setMatrixAt(slot, d.matrix);
-        const grown = 1 - n.regrowLeft / type.regrowSeconds;
-        const s = 0.15 + 0.45 * Math.max(0, grown);
-        d.position.y = STUMP_HEIGHT;
-        d.scale.set(s, s, s);
+        this.set(this.stump, slot, d.matrix);
+        const grown = Math.max(0, 1 - n.regrowLeft / type.regrowSeconds);
+        d.position.x += 0.35;
+        d.scale.setScalar(TREES.scale * (TREES.saplingMin + (TREES.saplingMax - TREES.saplingMin) * grown));
         d.updateMatrix();
-        this.foliage.setMatrixAt(slot, d.matrix);
+        this.set(this.pine, slot, d.matrix);
         this.snow.setMatrixAt(slot, this.hidden);
       }
     });
-    this.trunk.instanceMatrix.needsUpdate = true;
-    this.foliage.instanceMatrix.needsUpdate = true;
-    this.snow.instanceMatrix.needsUpdate = true;
+    for (const m of [...this.pine, ...this.stump, this.snow]) m.instanceMatrix.needsUpdate = true;
   }
 }

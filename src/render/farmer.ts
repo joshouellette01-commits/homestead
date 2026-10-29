@@ -3,11 +3,9 @@
 import {
   BoxGeometry,
   CapsuleGeometry,
-  Color,
   ConeGeometry,
   CylinderGeometry,
   Group,
-  InstancedMesh,
   Mesh,
   MeshLambertMaterial,
   Object3D,
@@ -16,7 +14,9 @@ import {
   type Scene,
 } from 'three';
 import type { Content } from '../content';
-import { COLORS, FARMER, ITEM_COLORS, STACK_ITEM } from './config';
+import { COLORS, FARMER, STACK_ITEM } from './config';
+import { ItemInstances } from './items';
+import type { Models } from './models';
 
 /** Upper bound on stack instances; the stack never renders more than this. */
 const MAX_STACK = 100;
@@ -39,16 +39,15 @@ export class FarmerView {
   readonly root = new Group();
   private readonly body = new Group();
   private readonly arm = new Group();
-  private readonly stackMesh: InstancedMesh;
+  private readonly stackItems: ItemInstances;
   private readonly dummy = new Object3D();
-  private readonly color = new Color();
   private heading = 0;
   private walkPhase = 0;
   // Stack sway spring: world-space displacement of the stack top, and its velocity.
   private readonly sway = { x: 0, z: 0, vx: 0, vz: 0 };
   private stackTop = 0;
 
-  constructor(scene: Scene, private readonly content: Content) {
+  constructor(scene: Scene, private readonly content: Content, models: Models) {
     const mat = (color: number): MeshLambertMaterial => new MeshLambertMaterial({ color });
 
     const legs = new Mesh(new CylinderGeometry(0.22, 0.24, 0.45, 8), mat(COLORS.farmerPants));
@@ -79,14 +78,8 @@ export class FarmerView {
       o.castShadow = true;
     });
 
-    this.stackMesh = new InstancedMesh(
-      new BoxGeometry(STACK_ITEM.length, 1, STACK_ITEM.depth),
-      new MeshLambertMaterial(),
-      MAX_STACK,
-    );
-    this.stackMesh.castShadow = true;
-    this.stackMesh.count = 0;
-    scene.add(this.root, this.stackMesh);
+    this.stackItems = new ItemInstances(scene, models.log, MAX_STACK);
+    scene.add(this.root);
   }
 
   /** World position just above the top of the stack, for the full-stack icon. */
@@ -156,20 +149,18 @@ export class FarmerView {
     const fullHeight = Math.max(1, capacity) * f.stackItemHeight;
 
     const d = this.dummy;
+    this.stackItems.begin();
     for (let i = 0; i < n; i++) {
       // Sway grows with the square of height, so the top moves most.
       const t = ((i + 0.5) * f.stackItemHeight) / fullHeight;
       const bend = t * t;
       d.position.set(baseX + this.sway.x * bend, baseY + (i + 0.5) * f.stackItemHeight, baseZ + this.sway.z * bend);
       d.rotation.set(0, this.heading, 0);
-      d.scale.set(1, f.stackItemHeight * 0.92, 1);
+      d.scale.set(STACK_ITEM.length, f.stackItemHeight * 0.92, STACK_ITEM.depth);
       d.updateMatrix();
-      this.stackMesh.setMatrixAt(i, d.matrix);
-      this.stackMesh.setColorAt(i, this.color.setHex(ITEM_COLORS[stack[i] ?? ''] ?? COLORS.unknownItem));
+      this.stackItems.add(stack[i] ?? '', d.matrix);
     }
-    if (this.stackMesh.instanceColor) this.stackMesh.instanceColor.needsUpdate = true;
-    this.stackMesh.count = n;
-    this.stackMesh.instanceMatrix.needsUpdate = true;
+    this.stackItems.end();
     this.stackTop = baseY + n * f.stackItemHeight;
   }
 }

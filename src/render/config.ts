@@ -46,6 +46,8 @@ export const COLORS = {
   farmerSkin: 0xf0c8a0,
   farmerHat: 0xb23028,
   tool: 0x8a8f96,
+  logBark: 0x8b5a2b,
+  logInner: 0xe8c9a0,
   unknownItem: 0x999999,
 } as const;
 
@@ -54,6 +56,17 @@ export const ITEM_COLORS: Record<string, number> = {
   log: 0x8b5a2b,
   plank: 0xe0b878,
 };
+
+/** Our colours for the Kenney models' materials, by material name. */
+export const MODEL_COLORS: Record<string, number> = {
+  leafsDark: COLORS.pine,
+  woodBarkDark: COLORS.trunk,
+  woodBark: COLORS.logBark,
+  woodInner: COLORS.logInner,
+};
+
+/** Size of the glTF pine relative to the model file, and where the snow cap sits on it. */
+export const TREES = { scale: 1.8, snowCapRadius: 0.2, snowCapHeight: 0.32, saplingMin: 0.15, saplingMax: 0.6, stumpScale: 1.6 } as const;
 
 /** Dashed plot rings and their labels. */
 export const PLOTS = {

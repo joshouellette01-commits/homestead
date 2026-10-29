@@ -2,6 +2,7 @@ import { Vector3 } from 'three';
 import { content } from './content';
 import { Controls } from './input/controls';
 import { RENDER } from './render/config';
+import { loadModels, type Models } from './render/models';
 import { World } from './render/scene';
 import { applySave, clearSave, getStorage, readSave, toSave, writeSave } from './save/save';
 import { createState, type SimState } from './sim/state';
@@ -25,8 +26,8 @@ const storage = getStorage();
 let saveNow: () => void = () => {};
 registerUpdates(() => saveNow());
 
-function start(state: SimState): void {
-  const world = new World(root, content, state);
+function start(state: SimState, models: Models): void {
+  const world = new World(root, content, state, models);
   const touch = document.createElement('div');
   touch.id = 'touch';
   root.appendChild(touch);
@@ -134,28 +135,38 @@ function start(state: SimState): void {
 
 const state = createState(content);
 const loaded = readSave(storage);
-if (loaded.kind === 'newer') {
-  // A stale cached build reading a newer save: never offer to erase it.
-  console.error('Save is from a newer build:', loaded.error);
-  showDialog(root, 'This farm was saved by a newer version of the game. Reload to update.', [
+
+function begin(models: Models): void {
+  if (loaded.kind === 'newer') {
+    // A stale cached build reading a newer save: never offer to erase it.
+    console.error('Save is from a newer build:', loaded.error);
+    showDialog(root, 'This farm was saved by a newer version of the game. Reload to update.', [
+      { label: 'Reload', onClick: () => location.reload() },
+    ]);
+  } else if (loaded.kind === 'corrupt') {
+    console.error('Save failed to load:', loaded.error);
+    showDialog(root, "Your saved farm couldn't be loaded. Start a new farm? This erases the old save.", [
+      {
+        label: 'Start over',
+        onClick: () => {
+          clearSave(storage);
+          start(state, models);
+        },
+      },
+    ]);
+  } else {
+    if (loaded.kind === 'ok') {
+      applySave(state, loaded.data, content);
+      // A layout change in content.json may have put a solid where the player stood.
+      settle(state, content);
+    }
+    start(state, models);
+  }
+}
+
+loadModels(import.meta.env.BASE_URL).then(begin, (e: unknown) => {
+  console.error('Models failed to load:', e);
+  showDialog(root, "The game couldn't load its files. Check your connection and reload.", [
     { label: 'Reload', onClick: () => location.reload() },
   ]);
-} else if (loaded.kind === 'corrupt') {
-  console.error('Save failed to load:', loaded.error);
-  showDialog(root, "Your saved farm couldn't be loaded. Start a new farm? This erases the old save.", [
-    {
-      label: 'Start over',
-      onClick: () => {
-        clearSave(storage);
-        start(state);
-      },
-    },
-  ]);
-} else {
-  if (loaded.kind === 'ok') {
-    applySave(state, loaded.data, content);
-    // A layout change in content.json may have put a solid where the player stood.
-    settle(state, content);
-  }
-  start(state);
-}
+});

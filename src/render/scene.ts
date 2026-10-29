@@ -17,6 +17,7 @@ import { BuildingsView } from './buildings';
 import { IsoCamera } from './camera';
 import { COLORS, LIGHTING, RENDER } from './config';
 import { FarmerView } from './farmer';
+import type { Models } from './models';
 import { PlotsView } from './plots';
 import { PropsView } from './props';
 import { TreesView } from './trees';
@@ -42,7 +43,7 @@ export class World {
   /** Set when shadows were switched by hand, so the startup probe leaves them alone. */
   shadowsOverridden = false;
 
-  constructor(container: HTMLElement, private readonly content: Content, state: SimState) {
+  constructor(container: HTMLElement, private readonly content: Content, state: SimState, models: Models) {
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, RENDER.maxPixelRatio));
     this.renderer.shadowMap.enabled = true;
@@ -72,15 +73,15 @@ export class World {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    this.trees = new TreesView(this.scene, state.nodes, content);
+    this.trees = new TreesView(this.scene, state.nodes, content, models);
     this.props = new PropsView(this.scene, content);
-    this.buildings = new BuildingsView(this.scene, content, state);
+    this.buildings = new BuildingsView(this.scene, content, state, models);
     // Plot prices float over the world, under the HUD.
     const labels = document.createElement('div');
     labels.className = 'world-labels';
     container.appendChild(labels);
     this.plots = new PlotsView(this.scene, labels, content);
-    this.farmer = new FarmerView(this.scene, content);
+    this.farmer = new FarmerView(this.scene, content, models);
 
     this.iso.snapTo(state.player.x, state.player.z);
   }
