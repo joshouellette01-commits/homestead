@@ -118,15 +118,37 @@ export function settle(s: SimState, c: Content): void {
   clampToBounds(s, c);
 }
 
-/** Keep the player inside the nearest owned zone. */
+/** True when two zones share a stretch of edge along the given side of a. */
+function sharesEdge(a: Bounds, b: Bounds, side: 'minX' | 'maxX' | 'minZ' | 'maxZ'): boolean {
+  const overlap = (a0: number, a1: number, b0: number, b1: number): boolean => Math.min(a1, b1) - Math.max(a0, b0) > 0;
+  switch (side) {
+    case 'minX':
+      return a.minX === b.maxX && overlap(a.minZ, a.maxZ, b.minZ, b.maxZ);
+    case 'maxX':
+      return a.maxX === b.minX && overlap(a.minZ, a.maxZ, b.minZ, b.maxZ);
+    case 'minZ':
+      return a.minZ === b.maxZ && overlap(a.minX, a.maxX, b.minX, b.maxX);
+    case 'maxZ':
+      return a.maxZ === b.minZ && overlap(a.minX, a.maxX, b.minX, b.maxX);
+  }
+}
+
+/**
+ * Keep the player inside the nearest owned zone. The player's radius keeps
+ * them off outer edges, but not off an edge shared with another owned zone,
+ * so they can walk from one into the other.
+ */
 function clampToBounds(s: SimState, c: Content): void {
   const p = s.player;
   const r = c.player.radius;
+  const owned = ownedZoneBounds(s, c);
+  const margin = (b: Bounds, side: 'minX' | 'maxX' | 'minZ' | 'maxZ'): number =>
+    owned.some((o) => o !== b && sharesEdge(b, o, side)) ? -r : r;
   let best: { x: number; z: number } | null = null;
   let bestD = Infinity;
-  for (const b of ownedZoneBounds(s, c)) {
-    const x = Math.min(Math.max(p.x, b.minX + r), b.maxX - r);
-    const z = Math.min(Math.max(p.z, b.minZ + r), b.maxZ - r);
+  for (const b of owned) {
+    const x = Math.min(Math.max(p.x, b.minX + margin(b, 'minX')), b.maxX - margin(b, 'maxX'));
+    const z = Math.min(Math.max(p.z, b.minZ + margin(b, 'minZ')), b.maxZ - margin(b, 'maxZ'));
     const d = Math.hypot(x - p.x, z - p.z);
     if (d < bestD) {
       bestD = d;

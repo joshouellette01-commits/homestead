@@ -303,3 +303,106 @@ describe('upgrades', () => {
     expect(s.buildings[0]).toMatchObject({ built: true, level: 0 });
   });
 });
+
+describe('zones and gates', () => {
+  const gate = c.zones[0]!.plots.find((p) => p.kind === 'gate')!;
+  const field = c.zones.find((z) => z.id === 'field')!;
+
+  it('starts with only free zones owned, and walls the player in', () => {
+    const s = createState(c);
+    expect(s.zones).toMatchObject({ yard: true, field: false });
+    standOn(s, { x: 0, z: c.zones[0]!.bounds.minZ + 1 });
+    run(s, { x: 0, z: -1 }, 2);
+    expect(s.player.z).toBeGreaterThanOrEqual(c.zones[0]!.bounds.minZ + c.player.radius - 1e-9);
+  });
+
+  it('a gate buys its zone, which can then be walked into', () => {
+    const s = standOn(createState(c), gate);
+    s.cash = field.gateCost;
+    run(s, NO_INPUT, ring + 0.05);
+    expect(s.zones.field).toBe(true);
+    expect(s.cash).toBe(0);
+    expect(activePads(s, c).map((p) => p.id)).not.toContain(gate.id);
+    run(s, { x: 0, z: -1 }, 3);
+    expect(s.player.z).toBeLessThan(c.zones[0]!.bounds.minZ);
+  });
+
+  it('plots in a zone you do not own do not exist yet', () => {
+    const s = createState(c);
+    expect(activePads(s, c).some((p) => p.id.startsWith('field-'))).toBe(false);
+  });
+
+  it('crops can be walked through', () => {
+    const s = createState(c);
+    s.zones.field = true;
+    const wheat = field.nodes[0]!;
+    standOn(s, wheat);
+    run(s, NO_INPUT, SIM_DT);
+    expect(Math.hypot(s.player.x - wheat.x, s.player.z - wheat.z)).toBeLessThan(0.01);
+  });
+});
+
+describe('animals', () => {
+  const coopIndex = buildingPlots(c).findIndex((p) => p.machine === 'coop');
+  const coopPlot = buildingPlots(c)[coopIndex]!;
+  const coop = c.machines.coop!;
+  if (coop.kind !== 'animals') throw new Error('the Coop should be an animal building');
+  const trough = coopPlot.site.inputs[coop.feed]!;
+  if (!('pad' in trough)) throw new Error('the Coop trough should have a pad');
+
+  function builtCoop(): SimState {
+    const s = createState(c);
+    s.zones.field = true;
+    s.zones.coop = true;
+    const b = s.buildings[coopIndex]!;
+    b.built = true;
+    b.delivered = { ...coopPlot.materials };
+    return s;
+  }
+
+  it('lay one item per secondsPerItem per animal, eating one feed each', () => {
+    const s = builtCoop();
+    s.buildings[coopIndex]!.inputs = { [coop.feed]: 10 };
+    run(s, NO_INPUT, coop.secondsPerItem + 0.01);
+    expect(s.buildings[coopIndex]).toMatchObject({ output: coop.animals, inputs: { [coop.feed]: 10 - coop.animals } });
+  });
+
+  it('produce nothing with an empty trough', () => {
+    const s = builtCoop();
+    run(s, NO_INPUT, coop.secondsPerItem * 3);
+    expect(s.buildings[coopIndex]!.output).toBe(0);
+  });
+
+  it('the trough takes feed only up to its capacity', () => {
+    const s = standOn(builtCoop(), trough.pad);
+    s.player.stack = Array(trackValue(c, 'capacity', 0)).fill(coop.feed);
+    s.buildings[coopIndex]!.inputs = { [coop.feed]: coop.troughCapacity - 3 };
+    run(s, NO_INPUT, 2);
+    expect(s.buildings[coopIndex]!.inputs[coop.feed]).toBe(coop.troughCapacity);
+    expect(s.player.stack).toHaveLength(trackValue(c, 'capacity', 0) - 3);
+  });
+
+  it('herd upgrades add an animal and cost a fraction of the building', () => {
+    const s = standOn(builtCoop(), coopPlot);
+    s.cash = 100000;
+    run(s, NO_INPUT, ring + 0.05);
+    expect(s.buildings[coopIndex]!.level).toBe(1);
+    expect(s.cash).toBe(100000 - Math.round(coopPlot.cash * c.herdUpgrade.costFractions[0]!));
+    expect(cycleSeconds(c, coop, 1)).toBeCloseTo(coop.secondsPerItem / (coop.animals + 1));
+  });
+
+  it('the Patisserie takes eggs straight from the Coop and flour from its own pile', () => {
+    const s = builtCoop();
+    const pIndex = buildingPlots(c).findIndex((p) => p.machine === 'patisserie');
+    const pat = c.machines.patisserie!;
+    if (pat.kind !== 'processor') throw new Error('the Patisserie should be a processor');
+    const p = s.buildings[pIndex]!;
+    p.built = true;
+    p.inputs = { flour: 3 };
+    s.buildings[coopIndex]!.output = 2;
+    run(s, NO_INPUT, pat.cycleSeconds * 3 + 0.01);
+    // Two eggs make two cakes; then it waits for eggs.
+    expect(p).toMatchObject({ output: 2, inputs: { flour: 1 } });
+    expect(s.buildings[coopIndex]!.output).toBe(0);
+  });
+});

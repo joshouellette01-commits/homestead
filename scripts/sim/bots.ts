@@ -96,7 +96,7 @@ function nearestPad(s: SimState, pads: ActivePad[], kind: ActivePad['kind']): Ac
 /** Nodes that give an item, if any; null means any node. */
 function harvest(s: SimState, c: Content, item: string | null): SimInput {
   const p = s.player;
-  const gives = (n: NodeState): boolean => item === null || c.nodeTypes[n.type]?.item === item;
+  const gives = (n: NodeState): boolean => s.zones[n.zone] === true && (item === null || c.nodeTypes[n.type]?.item === item);
   // Nearest ready node, else wait by the one that regrows soonest.
   let target: NodeState | null = null;
   let bestD = Infinity;
@@ -174,7 +174,7 @@ abstract class Planner implements Bot {
   private earn(s: SimState, c: Content, pads: ActivePad[]): SimInput {
     const p = s.player;
     const capacity = playerStats(s, c).capacity;
-    const anyReady = s.nodes.some((n) => n.remaining > 0);
+    const anyReady = s.nodes.some((n) => n.remaining > 0 && s.zones[n.zone] === true);
     if (p.stack.length >= capacity || (p.stack.length > 0 && !anyReady)) this.unloading = true;
     if (!this.unloading) return harvest(s, c, null);
 

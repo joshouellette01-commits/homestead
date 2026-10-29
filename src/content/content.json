@@ -1,25 +1,9 @@
 {
   "contentVersion": 1,
-  "world": {
-    "width": 120,
-    "depth": 120
-  },
-  "camera": {
-    "pitchDeg": 35,
-    "yawDeg": 45,
-    "viewSize": 11,
-    "followLerpSeconds": 0.15,
-    "buildingFadeOpacity": 0.4
-  },
-  "controls": {
-    "joystickSizePx": 110,
-    "deadzone": 0.05,
-    "fullSpeedAt": 0.49
-  },
-  "player": {
-    "spawn": { "x": 0, "z": 0 },
-    "radius": 0.4
-  },
+  "world": {"width": 120, "depth": 120},
+  "camera": {"pitchDeg": 35, "yawDeg": 45, "viewSize": 11, "followLerpSeconds": 0.15, "buildingFadeOpacity": 0.4},
+  "controls": {"joystickSizePx": 110, "deadzone": 0.05, "fullSpeedAt": 0.49},
+  "player": {"spawn": {"x": 0, "z": 0}, "radius": 0.4},
   "feel": {
     "stackItemHeight": 0.21,
     "stackSwayStiffness": 60,
@@ -43,40 +27,90 @@
     "maxWalkSeconds": 8
   },
   "items": {
-    "log": { "name": "Log", "kind": "raw", "sellPrice": 1 },
-    "plank": { "name": "Plank", "kind": "processed", "sellPrice": 3 }
+    "log": {"name": "Log", "kind": "raw", "sellPrice": 1},
+    "plank": {"name": "Plank", "kind": "processed", "sellPrice": 3},
+    "wheat": {"name": "Wheat", "kind": "raw", "sellPrice": 2},
+    "flour": {"name": "Flour", "kind": "processed", "sellPrice": 5},
+    "bread": {"name": "Bread", "kind": "processed", "sellPrice": 12},
+    "egg": {"name": "Egg", "kind": "raw", "sellPrice": 4},
+    "cake": {"name": "Cake", "kind": "processed", "sellPrice": 25}
   },
   "nodeTypes": {
-    "tree": { "item": "log", "yield": 5, "regrowSeconds": 20, "radius": 0.6, "harvestRange": 1.5, "solid": true }
+    "tree": {"item": "log", "yield": 5, "regrowSeconds": 20, "radius": 0.6, "harvestRange": 1.5, "solid": true},
+    "wheat": {"item": "wheat", "yield": 1, "regrowSeconds": 15, "radius": 0.3, "harvestRange": 1.0, "solid": false}
   },
   "characterTracks": {
-    "capacity": { "values": [10, 15, 20, 30, 40, 50], "costs": [80, 300, 1000, 3000, 8000] },
-    "walkSpeed": { "values": [6, 6.6, 7.2, 8.0, 8.7, 9.6], "costs": [80, 300, 1000, 3000, 8000] },
-    "swingSeconds": { "values": [0.75, 0.7, 0.6, 0.5], "costs": [80, 300, 1000] }
+    "capacity": {"values": [10, 15, 20, 30, 40, 50], "costs": [80, 300, 1000, 3000, 8000]},
+    "walkSpeed": {"values": [6, 6.6, 7.2, 8.0, 8.7, 9.6], "costs": [80, 300, 1000, 3000, 8000]},
+    "swingSeconds": {"values": [0.75, 0.7, 0.6, 0.5], "costs": [80, 300, 1000]}
   },
   "machines": {
-    "sawmill": { "kind": "processor", "name": "Sawmill", "inputs": ["log"], "output": "plank", "cycleSeconds": 3, "pileCapacity": 30, "radius": 1.3 }
+    "sawmill": {
+      "kind": "processor",
+      "name": "Sawmill",
+      "inputs": ["log"],
+      "output": "plank",
+      "cycleSeconds": 3,
+      "pileCapacity": 30,
+      "radius": 1.3
+    },
+    "mill": {
+      "kind": "processor",
+      "name": "Mill",
+      "inputs": ["wheat"],
+      "output": "flour",
+      "cycleSeconds": 3,
+      "pileCapacity": 30,
+      "radius": 1.3
+    },
+    "bakery": {
+      "kind": "processor",
+      "name": "Bakery",
+      "inputs": ["flour"],
+      "output": "bread",
+      "cycleSeconds": 4,
+      "pileCapacity": 30,
+      "radius": 1.3
+    },
+    "coop": {
+      "kind": "animals",
+      "name": "Coop",
+      "feed": "wheat",
+      "output": "egg",
+      "animals": 2,
+      "secondsPerItem": 30,
+      "troughCapacity": 20,
+      "pileCapacity": 30,
+      "radius": 1.8
+    },
+    "patisserie": {
+      "kind": "processor",
+      "name": "Patisserie",
+      "inputs": ["flour", "egg"],
+      "output": "cake",
+      "cycleSeconds": 5,
+      "pileCapacity": 30,
+      "radius": 1.3
+    }
   },
-  "buildingSpeed": { "levels": 3, "cycleMultiplier": 0.67, "costMinutes": 4 },
-  "herdUpgrade": { "costFractions": [0.5, 1, 2] },
+  "buildingSpeed": {"levels": 3, "cycleMultiplier": 0.67, "costMinutes": 4},
+  "herdUpgrade": {"costFractions": [0.5, 1, 2]},
   "zones": [
     {
       "id": "yard",
       "name": "Yard",
       "gateCost": 0,
-      "bounds": { "minX": -12, "maxX": 12, "minZ": -12, "maxZ": 12 },
+      "bounds": {"minX": -12, "maxX": 12, "minZ": -12, "maxZ": 12},
       "nodes": [
-        { "id": "yard-tree-1", "type": "tree", "x": -3.5, "z": -2 },
-        { "id": "yard-tree-2", "type": "tree", "x": -2, "z": -4.5 },
-        { "id": "yard-tree-3", "type": "tree", "x": -5, "z": -5 }
+        {"id": "yard-tree-1", "type": "tree", "x": -3.5, "z": -2},
+        {"id": "yard-tree-2", "type": "tree", "x": -2, "z": -4.5},
+        {"id": "yard-tree-3", "type": "tree", "x": -5, "z": -5}
       ],
       "props": [
-        { "id": "yard-sell-table", "kind": "sellTable", "x": 3.8, "z": 0.7, "radius": 0.5 },
-        { "id": "yard-workbench", "kind": "workbench", "x": -9.4, "z": -9.4, "radius": 0.9 }
+        {"id": "yard-sell-table", "kind": "sellTable", "x": 3.8, "z": 0.7, "radius": 0.5},
+        {"id": "yard-workbench", "kind": "workbench", "x": 0.64, "z": -8.41, "radius": 0.9}
       ],
-      "pads": [
-        { "id": "yard-sell", "kind": "sell", "x": 3, "z": 1.5 }
-      ],
+      "pads": [{"id": "yard-sell", "kind": "sell", "x": 3, "z": 1.5}],
       "plots": [
         {
           "id": "yard-sawmill",
@@ -85,18 +119,122 @@
           "x": 3.68,
           "z": 7.35,
           "cash": 60,
-          "materials": { "log": 15 },
+          "materials": {"log": 15},
           "site": {
             "x": 1.41,
             "z": 5.09,
-            "inputs": { "log": { "pad": { "x": 0.42, "z": 8.06 }, "pile": { "x": -0.85, "z": 7.07 } } },
-            "outputPad": { "x": 4.6, "z": 4.31 },
-            "outputPile": { "x": 5.87, "z": 3.89 }
+            "inputs": {"log": {"pad": {"x": 0.42, "z": 8.06}, "pile": {"x": -0.85, "z": 7.07}}},
+            "outputPad": {"x": 4.6, "z": 4.31},
+            "outputPile": {"x": 5.87, "z": 3.89}
           }
         },
-        { "id": "yard-capacity", "kind": "character", "track": "capacity", "x": -9.9, "z": -5.65 },
-        { "id": "yard-walkSpeed", "kind": "character", "track": "walkSpeed", "x": -7.5, "z": -7.5 },
-        { "id": "yard-swingSeconds", "kind": "character", "track": "swingSeconds", "x": -5.65, "z": -9.9 }
+        {"id": "yard-capacity", "kind": "character", "track": "capacity", "x": 1.27, "z": -4.67},
+        {"id": "yard-walkSpeed", "kind": "character", "track": "walkSpeed", "x": -0.92, "z": -6.86},
+        {"id": "yard-swingSeconds", "kind": "character", "track": "swingSeconds", "x": -3.11, "z": -9.05},
+        {"id": "yard-field-gate", "kind": "gate", "zone": "field", "x": -7.78, "z": -9.9}
+      ]
+    },
+    {
+      "id": "field",
+      "name": "Field",
+      "gateCost": 500,
+      "bounds": {"minX": -12, "maxX": 12, "minZ": -36, "maxZ": -12},
+      "nodes": [
+        {"id": "field-wheat-1", "type": "wheat", "x": -5.3, "z": -16.62},
+        {"id": "field-wheat-2", "type": "wheat", "x": -4.38, "z": -17.54},
+        {"id": "field-wheat-3", "type": "wheat", "x": -3.46, "z": -18.46},
+        {"id": "field-wheat-4", "type": "wheat", "x": -2.55, "z": -19.37},
+        {"id": "field-wheat-5", "type": "wheat", "x": -4.38, "z": -15.7},
+        {"id": "field-wheat-6", "type": "wheat", "x": -3.46, "z": -16.62},
+        {"id": "field-wheat-7", "type": "wheat", "x": -2.55, "z": -17.54},
+        {"id": "field-wheat-8", "type": "wheat", "x": -1.63, "z": -18.46},
+        {"id": "field-wheat-9", "type": "wheat", "x": -3.46, "z": -14.78},
+        {"id": "field-wheat-10", "type": "wheat", "x": -2.55, "z": -15.7},
+        {"id": "field-wheat-11", "type": "wheat", "x": -1.63, "z": -16.62},
+        {"id": "field-wheat-12", "type": "wheat", "x": -0.71, "z": -17.54}
+      ],
+      "props": [{"id": "field-sell-table", "kind": "sellTable", "x": 4.81, "z": -15.27, "radius": 0.5}],
+      "pads": [{"id": "field-sell", "kind": "sell", "x": 3.54, "z": -14.85}],
+      "plots": [
+        {
+          "id": "field-mill",
+          "kind": "building",
+          "machine": "mill",
+          "x": 0.14,
+          "z": -23.9,
+          "cash": 500,
+          "materials": {"plank": 20},
+          "site": {
+            "x": -2.12,
+            "z": -26.16,
+            "inputs": {"wheat": {"pad": {"x": -3.11, "z": -23.19}, "pile": {"x": -4.38, "z": -24.18}}},
+            "outputPad": {"x": 1.06, "z": -26.94},
+            "outputPile": {"x": 2.33, "z": -27.37}
+          }
+        },
+        {
+          "id": "field-bakery",
+          "kind": "building",
+          "machine": "bakery",
+          "x": 8.63,
+          "z": -22.49,
+          "cash": 1000,
+          "materials": {"plank": 25},
+          "site": {
+            "x": 6.36,
+            "z": -24.75,
+            "inputs": {"flour": {"pad": {"x": 9.33, "z": -25.74}, "pile": {"x": 8.34, "z": -27.01}}},
+            "outputPad": {"x": 5.59, "z": -21.57},
+            "outputPile": {"x": 5.16, "z": -20.29}
+          }
+        },
+        {"id": "field-coop-gate", "kind": "gate", "zone": "coop", "x": -10.5, "z": -24}
+      ]
+    },
+    {
+      "id": "coop",
+      "name": "Coop",
+      "gateCost": 1500,
+      "bounds": {"minX": -36, "maxX": -12, "minZ": -36, "maxZ": -12},
+      "nodes": [],
+      "props": [{"id": "coop-sell-table", "kind": "sellTable", "x": -13.36, "z": -17.18, "radius": 0.5}],
+      "pads": [{"id": "coop-sell", "kind": "sell", "x": -12.73, "z": -18.38}],
+      "plots": [
+        {
+          "id": "coop-coop",
+          "kind": "building",
+          "machine": "coop",
+          "x": -17.54,
+          "z": -20.36,
+          "cash": 1200,
+          "materials": {"plank": 20},
+          "site": {
+            "x": -19.8,
+            "z": -22.63,
+            "inputs": {"wheat": {"pad": {"x": -20.79, "z": -19.66}, "pile": {"x": -22.06, "z": -20.65}}},
+            "outputPad": {"x": -16.62, "z": -23.41},
+            "outputPile": {"x": -15.34, "z": -23.83}
+          }
+        },
+        {
+          "id": "coop-patisserie",
+          "kind": "building",
+          "machine": "patisserie",
+          "x": -15.06,
+          "z": -27.08,
+          "cash": 2000,
+          "materials": {"plank": 25},
+          "site": {
+            "x": -17.32,
+            "z": -29.34,
+            "inputs": {
+              "flour": {"pad": {"x": -18.31, "z": -26.38}, "pile": {"x": -19.59, "z": -27.37}},
+              "egg": {"from": "coop-coop"}
+            },
+            "outputPad": {"x": -14.14, "z": -30.12},
+            "outputPile": {"x": -12.87, "z": -30.55}
+          }
+        }
       ]
     }
   ]

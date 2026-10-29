@@ -7,7 +7,7 @@ const clone = (): Record<string, unknown> => structuredClone(raw) as Record<stri
 describe('parseContent', () => {
   it('accepts the shipped content.json', () => {
     const c = parseContent(raw);
-    expect(c.zones.map((z) => z.id)).toEqual(['yard']);
+    expect(c.zones.map((z) => z.id)).toEqual(['yard', 'field', 'coop']);
     expect(c.zones[0]?.nodes).toHaveLength(3);
   });
 
