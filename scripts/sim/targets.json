@@ -1,0 +1,5 @@
+{
+  "comment": "Targets from DESIGN.md that the simulator reports against. Checks, not game numbers.",
+  "farmhouseHours": { "min": 4, "max": 6 },
+  "stage1HandCashPerMinute": 35
+}

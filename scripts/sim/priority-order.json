@@ -1,0 +1,4 @@
+{
+  "comment": "Plot ids the priority bot buys, in order. Empty until plots exist (phase 3).",
+  "order": []
+}
