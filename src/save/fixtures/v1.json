@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "cash": 42,
+  "playTime": 315.5,
+  "player": { "x": 1.5, "z": -2, "stack": ["log", "log", "log"] },
+  "nodes": {
+    "yard-tree-1": { "remaining": 0, "regrowLeft": 12.25 },
+    "yard-tree-2": { "remaining": 3, "regrowLeft": 0 },
+    "yard-tree-3": { "remaining": 5, "regrowLeft": 0 }
+  },
+  "settings": {}
+}
