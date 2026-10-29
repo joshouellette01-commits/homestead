@@ -1,4 +1,13 @@
 {
-  "comment": "Plot ids the priority bot buys, in order. Empty until plots exist (phase 3).",
-  "order": []
+  "comment": "Plot ids the priority bot buys, in order. An id listed twice buys two levels.",
+  "order": [
+    "yard-sawmill",
+    "yard-capacity",
+    "yard-sawmill-speed",
+    "yard-walkSpeed",
+    "yard-capacity",
+    "yard-sawmill-speed",
+    "yard-swingSeconds",
+    "yard-sawmill-speed"
+  ]
 }

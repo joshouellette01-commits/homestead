@@ -1,5 +1,8 @@
 {
   "comment": "Targets from DESIGN.md that the simulator reports against. Checks, not game numbers.",
   "farmhouseHours": { "min": 4, "max": 6 },
-  "stage1HandCashPerMinute": 35
+  "stage1HandCashPerMinute": 35,
+  "stage2HandCashPerMinute": 60,
+  "yardPurchaseMinutes": { "min": 1, "max": 3 },
+  "upgradeMinutes": { "min": 2, "max": 5 }
 }
