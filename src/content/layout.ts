@@ -68,14 +68,12 @@ export function validateLayout(l: Layout): string[] {
   }
 
   // Rule 2: pads sit at least minPadSpacing apart.
-  for (let i = 0; i < l.pads.length; i++) {
-    for (let j = i + 1; j < l.pads.length; j++) {
-      const a = l.pads[i]!;
-      const b = l.pads[j]!;
+  l.pads.forEach((a, i) => {
+    for (const b of l.pads.slice(i + 1)) {
       const d = dist(a, b);
       if (d < l.minPadSpacing) errors.push(`pads ${a.id} and ${b.id} are ${f(d)} apart (min ${l.minPadSpacing})`);
     }
-  }
+  });
 
   // Rule 3: upgrade plots sit at least minUpgradePlotToInputPadSpacing from any input pad.
   for (const plot of l.pads.filter((p) => p.kind === 'upgradePlot')) {

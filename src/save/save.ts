@@ -2,12 +2,13 @@
 // a save that fails to load is reported as corrupt and left untouched.
 import type { Content } from '../content';
 import type { SimState } from '../sim/state';
-import { migrate } from './migrate';
+import { SaveTooNewError, migrate } from './migrate';
 import { SAVE_KEY, SAVE_VERSION, type SaveData } from './schema';
 
 export type LoadResult =
   | { kind: 'none' }
   | { kind: 'ok'; data: SaveData }
+  | { kind: 'newer'; error: string }
   | { kind: 'corrupt'; error: string };
 
 /** localStorage, or null when the browser refuses access (private mode, blocked storage). */
@@ -31,7 +32,8 @@ export function readSave(storage: Storage | null): LoadResult {
   try {
     return { kind: 'ok', data: migrate(JSON.parse(text)) };
   } catch (e) {
-    return { kind: 'corrupt', error: e instanceof Error ? e.message : String(e) };
+    const error = e instanceof Error ? e.message : String(e);
+    return e instanceof SaveTooNewError ? { kind: 'newer', error } : { kind: 'corrupt', error };
   }
 }
 
@@ -72,7 +74,7 @@ export function applySave(s: SimState, data: SaveData, c: Content): void {
   s.time = data.playTime;
   s.player.x = data.player.x;
   s.player.z = data.player.z;
-  s.player.stack = data.player.stack.filter((item) => item in c.items).slice(0, c.player.capacity);
+  s.player.stack = data.player.stack.filter((item) => Object.hasOwn(c.items, item)).slice(0, c.player.capacity);
   for (const n of s.nodes) {
     const saved = data.nodes[n.id];
     const type = c.nodeTypes[n.type];

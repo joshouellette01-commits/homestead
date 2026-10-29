@@ -15,8 +15,6 @@ import { COLORS } from './config';
 
 const TRUNK_HEIGHT = 0.9;
 const STUMP_HEIGHT = 0.25;
-const SHAKE_SECONDS = 0.25;
-const SHAKE_ANGLE = 0.12;
 
 export class TreesView {
   private readonly trunk: InstancedMesh;
@@ -56,7 +54,7 @@ export class TreesView {
 
   hit(nodeIndex: number): void {
     const slot = this.indices.indexOf(nodeIndex);
-    if (slot >= 0) this.shake[slot] = SHAKE_SECONDS;
+    if (slot >= 0) this.shake[slot] = this.content.feel.treeShakeSeconds;
   }
 
   update(nodes: readonly NodeState[], dt: number): void {
@@ -66,7 +64,8 @@ export class TreesView {
       if (!n || !type) return;
       const shake = Math.max(0, (this.shake[slot] ?? 0) - dt);
       this.shake[slot] = shake;
-      const tilt = Math.sin(shake * 60) * SHAKE_ANGLE * (shake / SHAKE_SECONDS);
+      const { treeShakeSeconds, treeShakeAngle } = this.content.feel;
+      const tilt = Math.sin(shake * 60) * treeShakeAngle * (shake / treeShakeSeconds);
 
       const d = this.dummy;
       d.position.set(n.x, 0, n.z);

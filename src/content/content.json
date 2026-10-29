@@ -11,6 +11,7 @@
     "followLerpSeconds": 0.1
   },
   "controls": {
+    "joystickSizePx": 110,
     "deadzone": 0.1,
     "fullSpeedAt": 0.5
   },
@@ -26,7 +27,12 @@
     "stackSwayStiffness": 60,
     "stackSwayDamping": 7,
     "stackSwayPerSpeed": 0.05,
-    "stackSwayMax": 0.35
+    "stackSwayMax": 0.35,
+    "turnSpeed": 14,
+    "walkBobHeight": 0.06,
+    "walkBobPerUnit": 3.2,
+    "treeShakeSeconds": 0.25,
+    "treeShakeAngle": 0.12
   },
   "interaction": {
     "padRadius": 1.0,

@@ -1,9 +1,8 @@
 // The only input: a floating touch joystick, plus WASD/arrows on desktop.
 // Produces a world-space deflection for the sim; the sim applies the deadzone.
 import { create } from 'nipplejs';
+import type { ControlsContent } from '../content';
 import type { SimInput } from '../sim/state';
-
-const JOYSTICK_SIZE_PX = 110;
 
 const KEY_DIRS: Record<string, [number, number]> = {
   KeyW: [0, 1],
@@ -20,21 +19,13 @@ export class Controls {
   /** Screen-space deflection, +y up, magnitude 0..1. */
   private stick = { x: 0, y: 0 };
   private readonly keys = new Set<string>();
+  private joystick: ReturnType<typeof create>;
 
-  constructor(zone: HTMLElement) {
-    const joystick = create({
-      zone,
-      mode: 'dynamic',
-      size: JOYSTICK_SIZE_PX,
-      color: 'white',
-      fadeTime: 120,
-    });
-    joystick.on('move', (e) => {
-      this.stick = { x: e.data.vector.x, y: e.data.vector.y };
-    });
-    joystick.on('end', () => {
-      this.stick = { x: 0, y: 0 };
-    });
+  constructor(
+    private readonly zone: HTMLElement,
+    private readonly cfg: ControlsContent,
+  ) {
+    this.joystick = this.createJoystick();
 
     window.addEventListener('keydown', (e) => {
       if (e.code in KEY_DIRS) {
@@ -46,9 +37,29 @@ export class Controls {
     window.addEventListener('blur', () => this.reset());
   }
 
+  private createJoystick(): ReturnType<typeof create> {
+    const joystick = create({
+      zone: this.zone,
+      mode: 'dynamic',
+      size: this.cfg.joystickSizePx,
+      color: 'white',
+      fadeTime: 120,
+    });
+    joystick.on('move', (e) => {
+      this.stick = { x: e.data.vector.x, y: e.data.vector.y };
+    });
+    joystick.on('end', () => {
+      this.stick = { x: 0, y: 0 };
+    });
+    return joystick;
+  }
+
+  /** Drop all held input. Rebuilds the joystick in case iOS swallowed a touchend. */
   reset(): void {
     this.stick = { x: 0, y: 0 };
     this.keys.clear();
+    this.joystick.destroy();
+    this.joystick = this.createJoystick();
   }
 
   private screen(): { x: number; y: number } {

@@ -15,9 +15,37 @@ interface Targets {
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
+function field(obj: unknown, key: string, file: string): unknown {
+  if (typeof obj !== 'object' || obj === null || !(key in obj)) throw new Error(`${file}: missing "${key}"`);
+  return (obj as Record<string, unknown>)[key];
+}
+
+function number(obj: unknown, key: string, file: string): number {
+  const v = field(obj, key, file);
+  if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`${file}: "${key}" must be a number`);
+  return v;
+}
+
+function loadTargets(file: string): Targets {
+  const raw = readJson(file);
+  const hours = field(raw, 'farmhouseHours', file);
+  return {
+    farmhouseHours: { min: number(hours, 'min', file), max: number(hours, 'max', file) },
+    stage1HandCashPerMinute: number(raw, 'stage1HandCashPerMinute', file),
+  };
+}
+
+function loadOrder(file: string): string[] {
+  const order = field(readJson(file), 'order', file);
+  if (!Array.isArray(order) || !order.every((o) => typeof o === 'string')) {
+    throw new Error(`${file}: "order" must be a list of plot ids`);
+  }
+  return order;
+}
+
 const content = parseContent(readJson('src/content/content.json'));
-const targets = readJson('scripts/sim/targets.json') as Targets;
-const priorityOrder = (readJson('scripts/sim/priority-order.json') as { order: string[] }).order;
+const targets = loadTargets('scripts/sim/targets.json');
+const priorityOrder = loadOrder('scripts/sim/priority-order.json');
 
 const minutesArg = process.argv.indexOf('--minutes');
 const minutes = minutesArg >= 0 ? Number(process.argv[minutesArg + 1]) : 30;

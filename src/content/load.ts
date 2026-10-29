@@ -107,6 +107,7 @@ function camera(value: unknown, path: string): CameraContent {
 function controls(value: unknown, path: string): ControlsContent {
   const o = obj(value, path);
   const c = {
+    joystickSizePx: positive(o, 'joystickSizePx', path),
     deadzone: num(o, 'deadzone', path, { min: 0 }),
     fullSpeedAt: positive(o, 'fullSpeedAt', path),
   };
@@ -122,6 +123,11 @@ function feel(value: unknown, path: string): FeelContent {
     stackSwayDamping: num(o, 'stackSwayDamping', path, { min: 0 }),
     stackSwayPerSpeed: num(o, 'stackSwayPerSpeed', path, { min: 0 }),
     stackSwayMax: num(o, 'stackSwayMax', path, { min: 0 }),
+    turnSpeed: positive(o, 'turnSpeed', path),
+    walkBobHeight: num(o, 'walkBobHeight', path, { min: 0 }),
+    walkBobPerUnit: num(o, 'walkBobPerUnit', path, { min: 0 }),
+    treeShakeSeconds: positive(o, 'treeShakeSeconds', path),
+    treeShakeAngle: num(o, 'treeShakeAngle', path, { min: 0 }),
   };
 }
 

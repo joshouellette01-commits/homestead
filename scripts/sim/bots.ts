@@ -2,7 +2,7 @@
 // the player has, so walking, collision, stop-to-sell and swing timing all
 // cost them exactly what they cost a person.
 import type { Content } from '../../src/content';
-import type { SimInput, SimState } from '../../src/sim/state';
+import type { NodeState, SimInput, SimState } from '../../src/sim/state';
 import { NO_INPUT } from '../../src/sim/state';
 
 export interface Bot {
@@ -98,7 +98,7 @@ export class Hauler {
     }
 
     // Nearest ready node, else wait by the one that regrows soonest.
-    let target = null as (typeof s.nodes)[number] | null;
+    let target: NodeState | null = null;
     let bestD = Infinity;
     for (const n of s.nodes) {
       if (n.remaining <= 0) continue;

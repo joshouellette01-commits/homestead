@@ -5,6 +5,11 @@ export class SaveError extends Error {
   override name = 'SaveError';
 }
 
+/** A valid save written by a newer build; never offer to reset it. */
+export class SaveTooNewError extends SaveError {
+  override name = 'SaveTooNewError';
+}
+
 type Raw = Record<string, unknown>;
 
 /**
@@ -17,6 +22,10 @@ function isObj(v: unknown): v is Raw {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((s) => typeof s === 'string');
+}
+
 function finite(v: unknown, path: string): number {
   if (typeof v !== 'number' || !Number.isFinite(v)) throw new SaveError(`${path}: expected a number`);
   return v;
@@ -26,7 +35,7 @@ function validate(raw: Raw): SaveData {
   const player = raw.player;
   if (!isObj(player)) throw new SaveError('player: expected an object');
   const stack = player.stack;
-  if (!Array.isArray(stack) || !stack.every((s) => typeof s === 'string')) {
+  if (!isStringArray(stack)) {
     throw new SaveError('player.stack: expected an array of strings');
   }
   if (!isObj(raw.nodes)) throw new SaveError('nodes: expected an object');
@@ -44,7 +53,7 @@ function validate(raw: Raw): SaveData {
     version: SAVE_VERSION,
     cash: finite(raw.cash, 'cash'),
     playTime: finite(raw.playTime, 'playTime'),
-    player: { x: finite(player.x, 'player.x'), z: finite(player.z, 'player.z'), stack: stack as string[] },
+    player: { x: finite(player.x, 'player.x'), z: finite(player.z, 'player.z'), stack },
     nodes,
     settings,
   };
@@ -57,7 +66,7 @@ export function migrate(input: unknown): SaveData {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
     throw new SaveError('missing or invalid version');
   }
-  if (version > SAVE_VERSION) throw new SaveError(`save is version ${version}, newer than this build (${SAVE_VERSION})`);
+  if (version > SAVE_VERSION) throw new SaveTooNewError(`save is version ${version}, newer than this build (${SAVE_VERSION})`);
   while (version < SAVE_VERSION) {
     const step = MIGRATIONS[version];
     if (!step) throw new SaveError(`no migration from version ${version}`);

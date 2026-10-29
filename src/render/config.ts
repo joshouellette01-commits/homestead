@@ -56,7 +56,6 @@ export const FARMER = {
   /** Where the bottom of the carried stack sits, relative to the farmer's feet. */
   stackBaseHeight: 0.55,
   stackBackOffset: 0.42,
-  turnSpeed: 14,
 } as const;
 
 /** Visual size of one stacked item: length across the back, depth. Height comes from content.feel. */

@@ -103,14 +103,16 @@ export class FarmerView {
     // Turn smoothly toward the desired heading along the shortest arc.
     let delta = pose.facing - this.heading;
     delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-    this.heading += delta * Math.min(1, FARMER.turnSpeed * dt);
+    const f = this.content.feel;
+    this.heading += delta * Math.min(1, f.turnSpeed * dt);
     this.root.rotation.y = this.heading;
 
     const speed = Math.hypot(pose.vx, pose.vz);
-    this.walkPhase += speed * dt * 3.2;
-    this.body.position.y = speed > 0 ? Math.abs(Math.sin(this.walkPhase)) * 0.06 : 0;
+    this.walkPhase += speed * dt * f.walkBobPerUnit;
+    this.body.position.y = speed > 0 ? Math.abs(Math.sin(this.walkPhase)) * f.walkBobHeight : 0;
 
-    // Swing: wind up over the first 70% of the cycle, strike on the last 30%.
+    // Placeholder swing until the glTF farmer's animation clips arrive:
+    // wind up over the first 70% of the cycle, strike on the last 30%.
     if (pose.swing !== null) {
       const t = pose.swing;
       const angle = t < 0.7 ? -(t / 0.7) * 2.2 : -2.2 + ((t - 0.7) / 0.3) * 3.0;

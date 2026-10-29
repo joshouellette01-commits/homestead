@@ -88,6 +88,13 @@ describe('corrupt saves', () => {
     expect(() => migrate({ version: SAVE_VERSION + 1 })).toThrow(SaveError);
   });
 
+  it('reports a newer save as newer, not corrupt, and leaves it in storage', () => {
+    const text = JSON.stringify({ version: SAVE_VERSION + 1 });
+    const storage = memoryStorage({ [SAVE_KEY]: text });
+    expect(readSave(storage).kind).toBe('newer');
+    expect(storage.getItem(SAVE_KEY)).toBe(text);
+  });
+
   it('treats an empty slot as no save', () => {
     expect(readSave(memoryStorage()).kind).toBe('none');
   });

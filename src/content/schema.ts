@@ -24,6 +24,8 @@ export interface CameraContent {
 }
 
 export interface ControlsContent {
+  /** Diameter of the joystick ring; deadzone and fullSpeedAt are fractions of its radius. */
+  joystickSizePx: number;
   /** Joystick deflection (0..1) below which the player stands still. */
   deadzone: number;
   /** Deflection at which the player reaches full walk speed. */
@@ -46,6 +48,13 @@ export interface FeelContent {
   /** Sway at the top of the stack per unit of walk speed, before the spring. */
   stackSwayPerSpeed: number;
   stackSwayMax: number;
+  /** How fast the farmer turns to face a new heading (per second, exponential). */
+  turnSpeed: number;
+  walkBobHeight: number;
+  /** Bob phase advanced per unit walked. */
+  walkBobPerUnit: number;
+  treeShakeSeconds: number;
+  treeShakeAngle: number;
 }
 
 export interface InteractionContent {

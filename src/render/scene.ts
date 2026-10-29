@@ -34,6 +34,8 @@ export class World {
   private readonly trees: TreesView;
   private readonly props: PropsView;
   private shadows = true;
+  /** Set when shadows were switched by hand, so the startup probe leaves them alone. */
+  shadowsOverridden = false;
 
   constructor(container: HTMLElement, private readonly content: Content, state: SimState) {
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -121,7 +123,7 @@ export class World {
       dt,
     );
     this.trees.update(state.nodes, dt);
-    this.props.update(x, z);
+    this.props.update(p.x, p.z, !moving);
 
     this.iso.follow(x, z, dt);
     const t = this.iso.target;

@@ -95,6 +95,7 @@ export function createDebugOverlay(root: HTMLElement, content: Content, world: W
   };
   updateShadowLabel();
   shadowBtn.addEventListener('click', () => {
+    world.shadowsOverridden = true;
     world.setShadows(!world.shadowsEnabled);
     updateShadowLabel();
   });

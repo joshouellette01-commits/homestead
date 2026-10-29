@@ -5,7 +5,7 @@ import { RENDER } from './render/config';
 import { World } from './render/scene';
 import { applySave, clearSave, getStorage, readSave, toSave, writeSave } from './save/save';
 import { createState, type SimState } from './sim/state';
-import { SIM_DT, tick } from './sim/tick';
+import { SIM_DT, settle, tick } from './sim/tick';
 import { Hud, showDialog } from './ui/hud';
 
 const AUTOSAVE_SECONDS = 10;
@@ -21,7 +21,7 @@ function start(state: SimState): void {
   const touch = document.createElement('div');
   touch.id = 'touch';
   root.appendChild(touch);
-  const controls = new Controls(touch);
+  const controls = new Controls(touch, content.controls);
 
   let paused = false;
   const save = (): void => {
@@ -72,7 +72,8 @@ function start(state: SimState): void {
   const frame = { prevX: state.player.x, prevZ: state.player.z, alpha: 1 };
 
   world.renderer.setAnimationLoop((now: number) => {
-    const dt = Math.min((now - last) / 1000, RENDER.maxFrameSeconds);
+    const rawDt = (now - last) / 1000;
+    const dt = Math.min(rawDt, RENDER.maxFrameSeconds);
     last = now;
 
     if (!paused) {
@@ -93,11 +94,12 @@ function start(state: SimState): void {
       }
 
       if (!probe.done) {
+        // Uncapped time, so early hitches count against the average.
         probe.frames += 1;
-        probe.seconds += dt;
+        probe.seconds += rawDt;
         if (probe.seconds >= RENDER.shadowProbeSeconds) {
           probe.done = true;
-          if (probe.frames / probe.seconds < RENDER.shadowMinFps) world.setShadows(false);
+          if (!world.shadowsOverridden && probe.frames / probe.seconds < RENDER.shadowMinFps) world.setShadows(false);
         }
       }
     }
@@ -118,7 +120,13 @@ function start(state: SimState): void {
 
 const state = createState(content);
 const loaded = readSave(storage);
-if (loaded.kind === 'corrupt') {
+if (loaded.kind === 'newer') {
+  // A stale cached build reading a newer save: never offer to erase it.
+  console.error('Save is from a newer build:', loaded.error);
+  showDialog(root, 'This farm was saved by a newer version of the game. Reload to update.', [
+    { label: 'Reload', onClick: () => location.reload() },
+  ]);
+} else if (loaded.kind === 'corrupt') {
   console.error('Save failed to load:', loaded.error);
   showDialog(root, "Your saved farm couldn't be loaded. Start a new farm? This erases the old save.", [
     {
@@ -130,6 +138,10 @@ if (loaded.kind === 'corrupt') {
     },
   ]);
 } else {
-  if (loaded.kind === 'ok') applySave(state, loaded.data, content);
+  if (loaded.kind === 'ok') {
+    applySave(state, loaded.data, content);
+    // A layout change in content.json may have put a solid where the player stood.
+    settle(state, content);
+  }
   start(state);
 }

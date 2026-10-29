@@ -70,11 +70,11 @@ export class PropsView {
     }
   }
 
-  /** Light up the pad the player is standing on. */
-  update(playerX: number, playerZ: number): void {
+  /** Light up the pad the player is stopped on, matching when the sim transfers. */
+  update(playerX: number, playerZ: number, stopped: boolean): void {
     const r = this.content.interaction.padRadius;
     for (const p of this.pads) {
-      const on = Math.hypot(playerX - p.x, playerZ - p.z) <= r;
+      const on = stopped && Math.hypot(playerX - p.x, playerZ - p.z) <= r;
       p.material.color.setHex(on ? COLORS.padActive : COLORS.pad);
     }
   }

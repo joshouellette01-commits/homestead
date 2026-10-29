@@ -65,7 +65,12 @@ function move(s: SimState, input: SimInput, c: Content, dt: number): void {
   p.facing = Math.atan2(p.vx, p.vz);
   p.x += p.vx * dt;
   p.z += p.vz * dt;
+  settle(s, c);
+}
 
+/** Push the player out of solids and back inside the owned zones. */
+export function settle(s: SimState, c: Content): void {
+  const p = s.player;
   const pr = c.player.radius;
   for (const o of obstacles(s, c)) {
     const dx = p.x - o.x;
