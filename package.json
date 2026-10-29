@@ -1,0 +1,27 @@
+{
+  "name": "homestead",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "icons": "tsx scripts/make-icons.ts"
+  },
+  "dependencies": {
+    "nipplejs": "1.0.4",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "@types/three": "0.186.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vite-plugin-pwa": "2.0.0",
+    "vitest": "5.0.4"
+  }
+}
