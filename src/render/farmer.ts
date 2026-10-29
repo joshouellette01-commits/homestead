@@ -46,6 +46,8 @@ export class FarmerView {
   // Stack sway spring: world-space displacement of the stack top, and its velocity.
   private readonly sway = { x: 0, z: 0, vx: 0, vz: 0 };
   private stackTop = 0;
+  /** Items collected but still flying in; hidden from the top of the stack until they land. */
+  incoming = 0;
 
   constructor(scene: Scene, private readonly content: Content, models: Models) {
     const mat = (color: number): MeshLambertMaterial => new MeshLambertMaterial({ color });
@@ -80,6 +82,20 @@ export class FarmerView {
 
     this.stackItems = new ItemInstances(scene, models.log, MAX_STACK);
     scene.add(this.root);
+  }
+
+  /** World position of stack slot i (0 is the bottom), as last drawn. */
+  stackSlotWorld(i: number, out: Vector3): Vector3 {
+    const back = -FARMER.stackBackOffset;
+    return out.set(
+      this.root.position.x + Math.sin(this.heading) * back + this.sway.x,
+      FARMER.stackBaseHeight + this.body.position.y + (i + 0.5) * this.content.feel.stackItemHeight,
+      this.root.position.z + Math.cos(this.heading) * back + this.sway.z,
+    );
+  }
+
+  get yaw(): number {
+    return this.heading;
   }
 
   /** World position just above the top of the stack, for the full-stack icon. */
@@ -141,7 +157,7 @@ export class FarmerView {
 
   private updateStack(stack: readonly string[], capacity: number): void {
     const f = this.content.feel;
-    const n = Math.min(stack.length, MAX_STACK);
+    const n = Math.min(Math.max(0, stack.length - this.incoming), MAX_STACK);
     const back = -FARMER.stackBackOffset;
     const baseX = this.root.position.x + Math.sin(this.heading) * back;
     const baseZ = this.root.position.z + Math.cos(this.heading) * back;

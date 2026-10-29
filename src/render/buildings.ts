@@ -11,6 +11,7 @@ import {
   Object3D,
   PlaneGeometry,
   RingGeometry,
+  Vector3,
   type Scene,
 } from 'three';
 import type { BuildingPlotContent, Content, MachineContent, Vec2 } from '../content';
@@ -29,6 +30,8 @@ interface BuildingView {
   materials: MeshLambertMaterial[];
   pads: Array<{ x: number; z: number; material: MeshLambertMaterial; ring: Mesh; icon: Mesh }>;
   built: boolean;
+  /** Items still flying into each pile; hidden until they land. */
+  incoming: { input: number; output: number };
   /** Seconds since it was built, for the pop-in; Infinity once settled. */
   sinceBuilt: number;
   opacity: number;
@@ -143,7 +146,18 @@ export class BuildingsView {
       });
 
       const built = state.buildings[i]?.built ?? false;
-      const view: BuildingView = { plot, root, blade, ghost, materials, pads, built, sinceBuilt: Infinity, opacity: 1 };
+      const view: BuildingView = {
+        plot,
+        root,
+        blade,
+        ghost,
+        materials,
+        pads,
+        built,
+        incoming: { input: 0, output: 0 },
+        sinceBuilt: Infinity,
+        opacity: 1,
+      };
       this.views.push(view);
       this.applyBuilt(view);
     });
@@ -204,25 +218,45 @@ export class BuildingsView {
       v.opacity += (target - v.opacity) * Math.min(1, dt * BUILDINGS.fadeSpeed);
       for (const m of v.materials) m.opacity = v.opacity;
 
-      this.writePile(v.plot.site.inputPile, machine.input, b.input, v.root.rotation.y);
-      this.writePile(v.plot.site.outputPile, machine.output, b.output, v.root.rotation.y);
+      this.writePile(v.plot.site.inputPile, machine.input, b.input - v.incoming.input, v.root.rotation.y);
+      this.writePile(v.plot.site.outputPile, machine.output, b.output - v.incoming.output, v.root.rotation.y);
     });
     this.pileItems.end();
   }
 
-  /** Stacks a pile PILE.perLayer side by side, each layer crossing the one below, like a woodpile. */
+  /** Where item k of a pile sits, and its yaw: PILE.perLayer side by side, each layer crossing the one below. */
+  private pileSlot(at: Vec2, k: number, angle: number, out: Vector3): number {
+    const layer = Math.floor(k / PILE.perLayer);
+    const cross = layer % 2 === 1;
+    const offset = ((k % PILE.perLayer) - (PILE.perLayer - 1) / 2) * PILE.depth * 1.1;
+    // Items run along local x, side by side along z; crossed layers turn a quarter.
+    const lx = cross ? offset : 0;
+    const lz = cross ? 0 : offset;
+    out.set(at.x + lx * Math.cos(angle) + lz * Math.sin(angle), PILE.height * (layer + 0.5), at.z - lx * Math.sin(angle) + lz * Math.cos(angle));
+    return angle + (cross ? Math.PI / 2 : 0);
+  }
+
+  /** Slot k of a building's input or output pile in world space; returns the item's yaw there. */
+  pileSlotWorld(building: number, which: 'input' | 'output', k: number, out: Vector3): number {
+    const v = this.views[building];
+    if (!v) return 0;
+    return this.pileSlot(which === 'input' ? v.plot.site.inputPile : v.plot.site.outputPile, k, v.root.rotation.y, out);
+  }
+
+  /** Counts an item flying into a pile; returns the call that lands it. */
+  expect(building: number, which: 'input' | 'output'): () => void {
+    const v = this.views[building];
+    if (!v) return () => {};
+    v.incoming[which] += 1;
+    return () => {
+      v.incoming[which] = Math.max(0, v.incoming[which] - 1);
+    };
+  }
+
   private writePile(at: Vec2, item: string, count: number, angle: number): void {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
     for (let k = 0; k < count; k++) {
-      const layer = Math.floor(k / PILE.perLayer);
-      const cross = layer % 2 === 1;
-      const offset = ((k % PILE.perLayer) - (PILE.perLayer - 1) / 2) * PILE.depth * 1.1;
-      // Items run along local x, side by side along z; crossed layers turn a quarter.
-      const lx = cross ? offset : 0;
-      const lz = cross ? 0 : offset;
-      this.dummy.position.set(at.x + lx * cos + lz * sin, PILE.height * (layer + 0.5), at.z - lx * sin + lz * cos);
-      this.dummy.rotation.set(0, angle + (cross ? Math.PI / 2 : 0), 0);
+      const yaw = this.pileSlot(at, k, angle, this.dummy.position);
+      this.dummy.rotation.set(0, yaw, 0);
       this.dummy.scale.set(PILE.length, PILE.height, PILE.depth);
       this.dummy.updateMatrix();
       if (!this.pileItems.add(item, this.dummy.matrix)) return;

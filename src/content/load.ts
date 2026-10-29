@@ -140,6 +140,8 @@ function feel(value: unknown, path: string): FeelContent {
     walkBobPerUnit: num(o, 'walkBobPerUnit', path, { min: 0 }),
     treeShakeSeconds: positive(o, 'treeShakeSeconds', path),
     treeShakeAngle: num(o, 'treeShakeAngle', path, { min: 0 }),
+    transferFlightSeconds: positive(o, 'transferFlightSeconds', path),
+    transferArcHeight: num(o, 'transferArcHeight', path, { min: 0 }),
   };
 }
 

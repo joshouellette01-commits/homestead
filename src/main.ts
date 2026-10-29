@@ -96,7 +96,7 @@ function start(state: SimState, models: Models): void {
         frame.prevX = state.player.x;
         frame.prevZ = state.player.z;
         const events = tick(state, controls.read(world.iso.yawRad), content, SIM_DT);
-        world.handleEvents(events);
+        world.handleEvents(events, state);
         accumulator -= SIM_DT;
       }
       frame.alpha = accumulator / SIM_DT;

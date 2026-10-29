@@ -30,7 +30,9 @@
     "walkBobHeight": 0.06,
     "walkBobPerUnit": 3.2,
     "treeShakeSeconds": 0.25,
-    "treeShakeAngle": 0.12
+    "treeShakeAngle": 0.12,
+    "transferFlightSeconds": 0.3,
+    "transferArcHeight": 0.9
   },
   "interaction": {
     "padRadius": 1.0,

@@ -14,22 +14,24 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, pa
 const formatCash = new Intl.NumberFormat('en-US');
 
 export class Hud {
+  private readonly carriedPill: HTMLElement;
+  private readonly carriedTypes: HTMLElement;
   private readonly carried: HTMLElement;
-  private readonly carriedIcon: HTMLElement;
   private readonly cash: HTMLElement;
   private readonly cap: HTMLElement;
   private readonly pauseOverlay: HTMLElement;
   private lastCarried = '';
   private lastCash = -1;
-  private lastTop = 'log';
+  private lastTypes = '';
+  /** Shown while the stack is empty: the last item carried. */
+  private lastItem = 'log';
 
   constructor(root: HTMLElement, onPause: () => void, onResume: () => void) {
     const hud = el('div', 'hud', root);
 
-    const left = el('div', 'hud-pill hud-carried', hud);
-    this.carriedIcon = el('span', 'hud-item-icon', left);
-    this.carriedIcon.style.background = hex(ITEM_COLORS.log ?? COLORS.unknownItem);
-    this.carried = el('span', 'hud-value', left);
+    this.carriedPill = el('div', 'hud-pill hud-carried', hud);
+    this.carriedTypes = el('span', 'hud-types', this.carriedPill);
+    this.carried = el('span', 'hud-value', this.carriedPill);
 
     const right = el('div', 'hud-right', hud);
     const cashPill = el('div', 'hud-pill hud-cash', right);
@@ -56,16 +58,26 @@ export class Hud {
 
   update(cash: number, stack: readonly string[], capacity: number, capScreen: { x: number; y: number } | null): void {
     const carried = stack.length;
-    // The icon shows the item on top of the stack; it keeps the last one while empty.
+    // One icon per item type in pickup order, each with its count once there are two or more types.
+    const counts = new Map<string, number>();
+    for (const item of stack) counts.set(item, (counts.get(item) ?? 0) + 1);
     const top = stack[carried - 1];
-    if (top !== undefined && top !== this.lastTop) {
-      this.carriedIcon.style.background = hex(ITEM_COLORS[top] ?? COLORS.unknownItem);
-      this.lastTop = top;
+    if (top !== undefined) this.lastItem = top;
+    if (counts.size === 0) counts.set(this.lastItem, 0);
+    const types = [...counts].map(([item, n]) => `${item}:${n}`).join(',');
+    if (types !== this.lastTypes) {
+      this.carriedTypes.replaceChildren();
+      for (const [item, n] of counts) {
+        const type = el('span', 'hud-type', this.carriedTypes);
+        el('span', 'hud-item-icon', type).style.background = hex(ITEM_COLORS[item] ?? COLORS.unknownItem);
+        if (counts.size > 1) el('span', 'hud-type-count', type).textContent = String(n);
+      }
+      this.lastTypes = types;
     }
     const text = `${carried}/${capacity}`;
     if (text !== this.lastCarried) {
       this.carried.textContent = text;
-      this.carried.parentElement?.classList.toggle('full', carried >= capacity);
+      this.carriedPill.classList.toggle('full', carried >= capacity);
       this.lastCarried = text;
     }
     const rounded = Math.floor(cash);

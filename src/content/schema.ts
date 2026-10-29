@@ -55,6 +55,9 @@ export interface FeelContent {
   walkBobPerUnit: number;
   treeShakeSeconds: number;
   treeShakeAngle: number;
+  /** How long an item takes to fly between the stack and a pile, plot or table. */
+  transferFlightSeconds: number;
+  transferArcHeight: number;
 }
 
 export interface InteractionContent {

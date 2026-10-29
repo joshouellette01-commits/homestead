@@ -81,18 +81,30 @@ export class TreesView {
         this.snow.setMatrixAt(slot, d.matrix);
         this.set(this.stump, slot, this.hidden);
       } else {
-        // Depleted: a stump, with a sapling beside it growing back over regrowSeconds.
-        d.scale.setScalar(TREES.stumpScale);
-        d.updateMatrix();
-        this.set(this.stump, slot, d.matrix);
+        // Depleted: just the stump at first; then the tree grows back up from
+        // that spot, reaching full size as it becomes harvestable again.
         const grown = Math.max(0, 1 - n.regrowLeft / type.regrowSeconds);
-        d.position.x += 0.35;
-        d.scale.setScalar(TREES.scale * (TREES.saplingMin + (TREES.saplingMax - TREES.saplingMin) * grown));
-        d.updateMatrix();
-        this.set(this.pine, slot, d.matrix);
-        this.snow.setMatrixAt(slot, this.hidden);
+        if (grown < TREES.stumpPortion) {
+          d.scale.setScalar(TREES.stumpScale);
+          d.updateMatrix();
+          this.set(this.stump, slot, d.matrix);
+          this.set(this.pine, slot, this.hidden);
+          this.snow.setMatrixAt(slot, this.hidden);
+        } else {
+          const t = (grown - TREES.stumpPortion) / (1 - TREES.stumpPortion);
+          const ease = 1 - (1 - t) ** 2;
+          d.scale.setScalar(TREES.scale * (TREES.saplingMin + (1 - TREES.saplingMin) * ease));
+          d.updateMatrix();
+          this.set(this.pine, slot, d.matrix);
+          this.snow.setMatrixAt(slot, d.matrix);
+          this.set(this.stump, slot, this.hidden);
+        }
       }
     });
-    for (const m of [...this.pine, ...this.stump, this.snow]) m.instanceMatrix.needsUpdate = true;
+    for (const m of [...this.pine, ...this.stump, this.snow]) {
+      m.instanceMatrix.needsUpdate = true;
+      // Stumps start hidden at scale 0; bounds must follow, or three.js culls them by stale ones.
+      m.boundingSphere = null;
+    }
   }
 }

@@ -21,7 +21,7 @@ const EPS = 1e-9;
 
 export type SimEvent =
   | { type: 'harvest'; node: number; item: string }
-  | { type: 'sell'; item: string; price: number }
+  | { type: 'sell'; pad: string; item: string; price: number }
   /** An item left the stack into a machine's input pile or a plot's materials. */
   | { type: 'deliver'; pad: string; item: string }
   /** An item came off an output pile onto the stack. */
@@ -213,7 +213,7 @@ function transferStep(s: SimState, pad: ActivePad, input: SimInput, c: Content):
         p.stack.pop();
         const price = c.items[top]?.sellPrice ?? 0;
         s.cash += price;
-        return { type: 'sell', item: top, price };
+        return { type: 'sell', pad: pad.id, item: top, price };
       };
     }
     case 'input': {

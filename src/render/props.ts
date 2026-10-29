@@ -76,6 +76,8 @@ function workbench(): Group {
 
 export class PropsView {
   private readonly pads: PadView[] = [];
+  /** Sell pad id to the top of the table it sells at. */
+  readonly tableTops = new Map<string, { x: number; y: number; z: number }>();
 
   constructor(scene: Scene, private readonly content: Content) {
     for (const zone of content.zones) {
@@ -91,6 +93,7 @@ export class PropsView {
         }
         if (nearest) t.rotation.y = Math.atan2(nearest.x - p.x, nearest.z - p.z);
         scene.add(t);
+        if (p.kind === 'sellTable' && nearest) this.tableTops.set(nearest.id, { x: p.x, y: 0.85, z: p.z });
       }
       for (const pad of zone.pads) {
         const r = content.interaction.padRadius;

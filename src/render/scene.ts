@@ -7,16 +7,18 @@ import {
   PCFShadowMap,
   PlaneGeometry,
   Scene,
+  Vector3,
   WebGLRenderer,
 } from 'three';
 import type { Content } from '../content';
-import { playerStats } from '../sim/plots';
+import { buildingPlots, playerStats } from '../sim/plots';
 import type { SimState } from '../sim/state';
 import type { SimEvent } from '../sim/tick';
 import { BuildingsView } from './buildings';
 import { IsoCamera } from './camera';
 import { COLORS, LIGHTING, RENDER } from './config';
 import { FarmerView } from './farmer';
+import { FlightsView } from './flights';
 import type { Models } from './models';
 import { PlotsView } from './plots';
 import { PropsView } from './props';
@@ -39,6 +41,11 @@ export class World {
   private readonly props: PropsView;
   private readonly plots: PlotsView;
   private readonly buildings: BuildingsView;
+  private readonly flights: FlightsView;
+  /** Pad id to the building it belongs to and which of its pads it is. */
+  private readonly buildingPads = new Map<string, { building: number; kind: 'input' | 'output' | 'build' }>();
+  private readonly from = new Vector3();
+  private readonly to = new Vector3();
   private shadows = true;
   /** Set when shadows were switched by hand, so the startup probe leaves them alone. */
   shadowsOverridden = false;
@@ -82,6 +89,12 @@ export class World {
     container.appendChild(labels);
     this.plots = new PlotsView(this.scene, labels, content);
     this.farmer = new FarmerView(this.scene, content, models);
+    this.flights = new FlightsView(this.scene, models.log, content);
+    buildingPlots(content).forEach((plot, building) => {
+      this.buildingPads.set(plot.id, { building, kind: 'build' });
+      this.buildingPads.set(`${plot.id}-input`, { building, kind: 'input' });
+      this.buildingPads.set(`${plot.id}-output`, { building, kind: 'output' });
+    });
 
     this.iso.snapTo(state.player.x, state.player.z);
   }
@@ -109,8 +122,46 @@ export class World {
     this.iso.resize(width, height);
   }
 
-  handleEvents(events: readonly SimEvent[]): void {
-    for (const e of events) if (e.type === 'harvest') this.trees.hit(e.node);
+  handleEvents(events: readonly SimEvent[], state: SimState): void {
+    const stackLen = state.player.stack.length;
+    let leaving = 0;
+    for (const e of events) {
+      if (e.type === 'harvest') this.trees.hit(e.node);
+      if (e.type === 'sell' || e.type === 'deliver') {
+        // The item left the top of the stack: fly it from where it sat.
+        this.farmer.stackSlotWorld(stackLen - this.farmer.incoming + leaving, this.from);
+        leaving++;
+        const yaw = this.farmer.yaw;
+        if (e.type === 'sell') {
+          const top = this.props.tableTops.get(e.pad);
+          if (top) this.flights.launch(e.item, this.from, this.to.set(top.x, top.y, top.z), yaw, yaw + Math.PI / 2);
+          continue;
+        }
+        const pad = this.buildingPads.get(e.pad);
+        const b = pad && state.buildings[pad.building];
+        if (!pad || !b) continue;
+        if (pad.kind === 'input') {
+          const pileYaw = this.buildings.pileSlotWorld(pad.building, 'input', b.input - 1, this.to);
+          this.flights.launch(e.item, this.from, this.to, yaw, pileYaw, this.buildings.expect(pad.building, 'input'));
+        } else {
+          // Materials go into the plot: fly to the middle of its footprint.
+          const site = buildingPlots(this.content)[pad.building]?.site;
+          if (site) this.flights.launch(e.item, this.from, this.to.set(site.x, 0.3, site.z), yaw, yaw);
+        }
+      }
+      if (e.type === 'collect') {
+        const pad = this.buildingPads.get(e.pad);
+        const b = pad && state.buildings[pad.building];
+        if (!pad || !b) continue;
+        const pileYaw = this.buildings.pileSlotWorld(pad.building, 'output', b.output, this.from);
+        // Lands on the slot above everything already shown or flying in.
+        this.farmer.stackSlotWorld(stackLen - 1, this.to);
+        this.farmer.incoming += 1;
+        this.flights.launch(e.item, this.from, this.to, pileYaw, this.farmer.yaw, () => {
+          this.farmer.incoming = Math.max(0, this.farmer.incoming - 1);
+        });
+      }
+    }
   }
 
   update(state: SimState, frame: PlayerFrame, dt: number): void {
@@ -139,6 +190,7 @@ export class World {
     this.trees.update(state.nodes, dt);
     this.props.update(p.x, p.z, !moving);
     this.buildings.update(state, x, z, this.iso.yawRad, dt);
+    this.flights.update(dt);
 
     this.iso.follow(x, z, dt);
     const t = this.iso.target;

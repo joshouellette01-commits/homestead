@@ -72,11 +72,13 @@ export class ItemInstances {
 
   end(): void {
     this.boards.count = this.boardCount;
-    this.boards.instanceMatrix.needsUpdate = true;
     if (this.boards.instanceColor) this.boards.instanceColor.needsUpdate = true;
-    for (const m of this.logs) {
-      m.count = this.logCount;
+    for (const m of this.logs) m.count = this.logCount;
+    for (const m of [this.boards, ...this.logs]) {
       m.instanceMatrix.needsUpdate = true;
+      // three.js computes instanced bounds once and culls by them; items move
+      // and piles grow, so recompute or new items can vanish off "screen".
+      m.boundingSphere = null;
     }
   }
 }

@@ -66,7 +66,16 @@ export const MODEL_COLORS: Record<string, number> = {
 };
 
 /** Size of the glTF pine relative to the model file, and where the snow cap sits on it. */
-export const TREES = { scale: 1.8, snowCapRadius: 0.2, snowCapHeight: 0.32, saplingMin: 0.15, saplingMax: 0.6, stumpScale: 1.6 } as const;
+export const TREES = {
+  scale: 1.8,
+  snowCapRadius: 0.2,
+  snowCapHeight: 0.32,
+  /** Fraction of the regrow time spent as a bare stump before the tree starts growing back. */
+  stumpPortion: 0.4,
+  /** Size the regrowing tree starts at, as a fraction of full size. */
+  saplingMin: 0.2,
+  stumpScale: 1.6,
+} as const;
 
 /** Dashed plot rings and their labels. */
 export const PLOTS = {
